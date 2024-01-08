@@ -108,6 +108,10 @@ class Config:
                 raise RepeatedConnectionsError(name)
 
             self.connections.update({name: conn})
+
+        if "datastore" in cfg.keys():
+            self.datastore = cfg["datastore"]
+
         return 0
 
     def addParams(self, type, param):
@@ -124,6 +128,49 @@ class Config:
 
         for a in self.actors.values():
             wflag = a.saveConfigModules(pathName, wflag)
+
+    def use_plasma(self):
+        return "plasma_config" in self.config.keys()
+
+    def get_redis_port(self):
+        if self.redis_port_specified():
+            return self.config["redis_config"]["port"]
+        else:
+            return Config.get_default_redis_port()
+
+    def redis_port_specified(self):
+        if "redis_config" in self.config.keys():
+            return "port" in self.config["redis_config"]
+        return False
+
+    def redis_saving_enabled(self):
+        if "redis_config" in self.config.keys():
+            return (
+                "enable_saving" in self.config["redis_config"]
+                and self.config["redis_config"]["enable_saving"]
+            )
+        return None
+
+    def generate_ephemeral_db_filename(self):
+        if "redis_config" in self.config.keys():
+            return (
+                "generate_ephemeral_db_filename" in self.config["redis_config"]
+                and self.config["redis_config"]["generate_ephemeral_db_filename"]
+            )
+        return False
+
+    def get_redis_db_filename(self):
+        if "redis_config" in self.config.keys():
+            return (
+                self.config["redis_config"]["db_filename"]
+                if "db_filename" in self.config["redis_config"]
+                else None
+            )
+        return None
+
+    @staticmethod
+    def get_default_redis_port():
+        return "6379"
 
 
 class ConfigModule:
