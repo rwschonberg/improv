@@ -134,7 +134,6 @@ def test_argument_config_precedence(setdir, ports):
         control_port=ports[0],
         output_port=ports[1],
         store_size=11_000_000,
-        use_hdd=True,
         use_watcher=True,
     )
     cfg = nex.config.settings
@@ -142,7 +141,6 @@ def test_argument_config_precedence(setdir, ports):
     assert cfg["control_port"] == ports[0]
     assert cfg["output_port"] == ports[1]
     assert cfg["store_size"] == 20_000_000
-    assert not cfg["use_hdd"]
     assert not cfg["use_watcher"]
 
 

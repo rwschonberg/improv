@@ -42,7 +42,6 @@ class Nexus:
     def createNexus(
         self,
         file=None,
-        use_hdd=False,
         use_watcher=None,
         store_size=10_000_000,
         control_port=0,
@@ -56,7 +55,6 @@ class Nexus:
 
         Args:
             file (string): Name of the config file.
-            use_hdd (bool): Whether to use hdd for the store.
             use_watcher (bool): Whether to use watcher for the store.
             store_size (int): initial store size
             control_port (int): port number for input socket
@@ -81,8 +79,6 @@ class Nexus:
         # set config options loaded from file
         # in Python 3.9, can just merge dictionaries using precedence
         cfg = self.config.settings
-        if "use_hdd" not in cfg:
-            cfg["use_hdd"] = use_hdd
         if "use_watcher" not in cfg:
             cfg["use_watcher"] = use_watcher
         if "store_size" not in cfg:
@@ -125,12 +121,6 @@ class Nexus:
             logger.info(f"Redis server connected on port {self.store_port}")
 
         self.store.subscribe()
-
-        # LMDB storage
-        self.use_hdd = cfg["use_hdd"]
-        if self.use_hdd:
-            self.lmdb_name = f'lmdb_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
-            self.store_dict = dict()
 
         # TODO: Better logic/flow for using watcher as an option
         self.p_watch = None
@@ -636,19 +626,9 @@ class Nexus:
         logger.info("Polling has stopped.")
 
     def createStoreInterface(self, name):
-        """Creates StoreInterface w/ or w/out LMDB
-        functionality based on {self.use_hdd}."""
+        """Creates StoreInterface"""
         if self.config.use_plasma():
-            if not self.use_hdd:
-                return PlasmaStoreInterface(name, self.store_loc)
-            else:
-                # I don't think this currently works,
-                # since the constructor doesn't accept these arguments
-                if name not in self.store_dict:
-                    self.store_dict[name] = PlasmaStoreInterface(
-                        name, self.store_loc, use_hdd=True, lmdb_name=self.lmdb_name
-                    )
-                return self.store_dict[name]
+            return PlasmaStoreInterface(name, self.store_loc)
         else:
             return RedisStoreInterface(server_port_num=self.store_port)
 
@@ -876,7 +856,6 @@ class Nexus:
         from improv.watcher import Watcher
 
         self.watcher = Watcher("watcher", self.createStoreInterface("watcher"))
-        # store = self.createStoreInterface("watcher") if not self.use_hdd else None
         q_sig = Link("watcher_sig", self.name, "watcher")
         self.watcher.setLinks(q_sig)
         self.sig_queues.update({q_sig.name: q_sig})

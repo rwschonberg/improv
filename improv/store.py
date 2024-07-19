@@ -1,10 +1,7 @@
 import os
 import uuid
 
-import lmdb
-import time
 import pickle
-import signal
 import logging
 import traceback
 
@@ -16,15 +13,9 @@ from redis.retry import Retry
 from redis.backoff import ConstantBackoff
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
 
-from queue import Queue
-from pathlib import Path
-from random import random
-from threading import Thread
-from typing import List, Union
-from dataclasses import dataclass, make_dataclass
 from scipy.sparse import csc_matrix
 from pyarrow.lib import ArrowIOError
-from pyarrow._plasma import PlasmaObjectExists, ObjectNotAvailable, ObjectID
+from pyarrow._plasma import PlasmaObjectExists, ObjectNotAvailable
 
 REDIS_GLOBAL_TOPIC = "global_topic"
 
@@ -207,49 +198,6 @@ class PlasmaStoreInterface(StoreInterface):
         self.store_loc = store_loc
         self.client = self.connect_store(store_loc)
         self.stored = {}
-        self.use_hdd = False
-
-    def _setup_LMDB(
-        self,
-        use_lmdb=False,
-        lmdb_path="../outputs/",
-        lmdb_name=None,
-        hdd_maxstore=1e12,
-        flush_immediately=False,
-        commit_freq=1,
-    ):
-        """
-        Constructor for the Store
-
-        Args:
-            name (string):
-            store_loc (stirng): Apache Arrow Plasma client location
-
-            use_lmdb (bool): Also write data to disk using the LMDB
-
-            hdd_maxstore:
-                Maximum size database may grow to; used to size the memory mapping.
-                If the database grows larger than map_size,
-                a MapFullError will be raised.
-                On 64-bit there is no penalty for making this huge.
-                Must be <2GB on 32-bit.
-
-            hdd_path: Path to LMDB folder.
-            flush_immediately (bool): Save objects to disk immediately
-            commit_freq (int): If not flush_immediately,
-                flush data to disk every {commit_freq} seconds.
-        """
-        self.use_hdd = use_lmdb
-        self.flush_immediately = flush_immediately
-
-        if use_lmdb:
-            self.lmdb_store = LMDBStoreInterface(
-                path=lmdb_path,
-                name=lmdb_name,
-                max_size=hdd_maxstore,
-                flush_immediately=flush_immediately,
-                commit_freq=commit_freq,
-            )
 
     def connect_store(self, store_loc):
         """Connect to the store at store_loc, max 20 retries to connect
@@ -296,8 +244,6 @@ class PlasmaStoreInterface(StoreInterface):
             else:
                 object_id = self.client.put(object)
 
-            if self.use_hdd:
-                self.lmdb_store.put(object, object_name, obj_id=object_id)
         except PlasmaObjectExists:
             logger.error("Object already exists. Meant to call replace?")
         except ArrowIOError:
@@ -328,13 +274,12 @@ class PlasmaStoreInterface(StoreInterface):
         # else:
         return self.getID(object_name)
 
-    def getID(self, obj_id, hdd_only=False):
+    def getID(self, obj_id):
         """
         Get object by object ID
 
         Args:
             obj_id (class 'plasma.ObjectID'): the id of the object
-            hdd_only (bool):
 
         Returns:
             Stored object
@@ -342,17 +287,9 @@ class PlasmaStoreInterface(StoreInterface):
         Raises:
             ObjectNotFoundError: If the id is not found
         """
-        # Check in RAM
-        if not hdd_only:
-            res = self.client.get(obj_id, 0)  # Timeout = 0 ms
-            if res is not plasma.ObjectNotAvailable:
-                return res if not isinstance(res, bytes) else pickle.loads(res)
-
-        # Check in disk
-        if self.use_hdd:
-            res = self.lmdb_store.get(obj_id)
-            if res is not None:
-                return res
+        res = self.client.get(obj_id, 0)  # Timeout = 0 ms
+        if res is not plasma.ObjectNotAvailable:
+            return res if not isinstance(res, bytes) else pickle.loads(res)
 
         logger.warning("Object {} cannot be found.".format(obj_id))
         raise ObjectNotFoundError
@@ -459,239 +396,7 @@ class PlasmaStoreInterface(StoreInterface):
             return res
 
 
-class LMDBStoreInterface(StoreInterface):
-    def __init__(
-        self,
-        path="../outputs/",
-        name=None,
-        load=False,
-        max_size=1e12,
-        flush_immediately=False,
-        commit_freq=1,
-    ):
-        """
-        Constructor for LMDB store
-
-        Args:
-            path (string): Path to folder containing LMDB folder.
-            name (string): Name of LMDB. Required if not {load].
-            max_size (float):
-            Maximum size database may grow to; used to size the memory mapping.
-            If the database grows larger than map_size, a MapFullError will be raised.
-            On 64-bit there is no penalty for making this huge. Must be <2GB on 32-bit.
-            load (bool): For Replayer use. Informs the class that we're loading
-                    from a previous LMDB, not create a new one.
-            flush_immediately (bool): Save objects to disk immediately
-            commit_freq (int): If not flush_immediately,
-                            flush data to disk every {commit_freq} seconds.
-        """
-
-        # Check if LMDB folder exists.
-        # LMDB path?
-        path = Path(path)
-        if load:
-            if name is not None:
-                path = path / name
-            if not (path / "data.mdb").exists():
-                raise FileNotFoundError("Invalid LMDB directory.")
-        else:
-            assert name is not None
-            if not path.exists():
-                path.mkdir(parents=True)
-            path = path / name
-
-        self.flush_immediately = flush_immediately
-        self.lmdb_env = lmdb.open(
-            path.as_posix(), map_size=max_size, sync=flush_immediately
-        )
-        self.lmdb_commit_freq = commit_freq
-
-        self.put_queue = Queue()
-        self.put_queue_container = make_dataclass(
-            "LMDBPutContainer", [("name", str), ("obj", bytes)]
-        )
-        # Initialize only after interpreter has forked at the start of each actor.
-        self.commit_thread: Thread = None
-        signal.signal(signal.SIGINT, self.flush)
-
-    def get(
-        self,
-        key: Union[plasma.ObjectID, bytes, List[plasma.ObjectID], List[bytes]],
-        include_metadata=False,
-    ):
-        """
-        Get object using key (could be any byte string or plasma.ObjectID)
-
-        Args:
-            key:
-            include_metadata (bool): returns whole LMDBData if true else LMDBData.obj
-                                (just the stored object).
-        Returns:
-            object or LMDBData
-        """
-        while True:
-            try:
-                if isinstance(key, str) or isinstance(key, ObjectID):
-                    return self._get_one(
-                        LMDBStoreInterface._convert_obj_id_to_bytes(key),
-                        include_metadata,
-                    )
-                return self._get_batch(
-                    list(map(LMDBStoreInterface._convert_obj_id_to_bytes, key)),
-                    include_metadata,
-                )
-            except (
-                lmdb.BadRslotError
-            ):  # Happens when multiple transactions access LMDB at the same time.
-                pass
-
-    def _get_one(self, key, include_metadata):
-        with self.lmdb_env.begin() as txn:
-            r = txn.get(key)
-
-        if r is None:
-            return None
-        return pickle.loads(r) if include_metadata else pickle.loads(r).obj
-
-    def _get_batch(self, keys, include_metadata):
-        with self.lmdb_env.begin() as txn:
-            objs = [txn.get(key) for key in keys]
-
-        if include_metadata:
-            return [pickle.loads(obj) for obj in objs if obj is not None]
-        else:
-            return [pickle.loads(obj).obj for obj in objs if obj is not None]
-
-    def get_keys(self):
-        """Get all keys in LMDB"""
-        with self.lmdb_env.begin() as txn:
-            with txn.cursor() as cur:
-                cur.first()
-                return [key for key in cur.iternext(values=False)]
-
-    def put(self, obj, obj_name, obj_id=None, flush_this_immediately=False):
-        """
-        Put object ID / object pair into LMDB.
-
-        Args:
-            obj: Object to be saved
-            obj_name (str): the name of the object
-            obj_id ('plasma.ObjectID'): Object_id from Plasma client
-            flush_this_immediately (bool): Override self.flush_immediately.
-                                        For storage of critical objects.
-
-        Returns:
-            None
-        """
-        # TODO: Duplication check
-        if self.commit_thread is None:
-            self.commit_thread = Thread(target=self.commit_daemon, daemon=True)
-            self.commit_thread.start()
-
-        if obj_name.startswith("q_") or obj_name.startswith("config"):  # Queue
-            name = obj_name.encode()
-            is_queue = True
-        else:
-            name = obj_id.binary() if obj_id is not None else obj_name.encode()
-            is_queue = False
-
-        self.put_queue.put(
-            self.put_queue_container(
-                name=name,
-                obj=pickle.dumps(
-                    LMDBData(obj, time=time.time(), name=obj_name, is_queue=is_queue)
-                ),
-            )
-        )
-
-        # Write
-        if self.flush_immediately or flush_this_immediately:
-            self.commit()
-            self.lmdb_env.sync()
-
-    def flush(self, sig=None, frame=None):
-        """Must run before exiting. Flushes buffer to disk."""
-        self.commit()
-        self.lmdb_env.sync()
-        self.lmdb_env.close()
-        exit(0)
-
-    def commit_daemon(self):
-        time.sleep(2 * random())  # Reduce multiple commits at the same time.
-        while True:
-            time.sleep(self.lmdb_commit_freq)
-            self.commit()
-
-    def commit(self):
-        """Commit objects in {self.put_cache} into LMDB."""
-        if not self.put_queue.empty():
-            print(self.put_queue.qsize())
-            with self.lmdb_env.begin(write=True) as txn:
-                while not self.put_queue.empty():
-                    container = self.put_queue.get_nowait()
-                    txn.put(container.name, container.obj, overwrite=True)
-
-    def delete(self, obj_id):
-        """
-        Delete object from LMDB.
-
-        Args:
-            obj_id (class 'plasma.ObjectID'): the object_id to be deleted
-
-        Returns:
-            None
-
-        Raises:
-            ObjectNotFoundError: If the id is not found
-        """
-        with self.lmdb_env.begin(write=True) as txn:
-            out = txn.pop(LMDBStoreInterface._convert_obj_id_to_bytes(obj_id))
-        if out is None:
-            raise ObjectNotFoundError
-
-    @staticmethod
-    def _convert_obj_id_to_bytes(obj_id):
-        try:
-            return obj_id.binary()
-        except AttributeError:
-            return obj_id
-
-    def replace(self):
-        pass  # TODO
-
-    def subscribe(self):
-        pass  # TODO
-
-
-# Aliasing
 StoreInterface = RedisStoreInterface
-
-
-@dataclass
-class LMDBData:
-    """
-    Dataclass to store objects and their metadata into LMDB.
-    """
-
-    obj: object
-    time: float
-    name: str = None
-    is_queue: bool = False
-
-    @property
-    def queue(self):
-        """
-        Returns:
-            Queue name if object is a queue else None
-        """
-        # Expected: 'q__Acquirer.q_out__124' -> {'q_out'}
-        if self.is_queue:
-            try:
-                return self.name.split("__")[1].split(".")[1]
-            except IndexError:
-                return "q_comm"
-        logger.error("Attempt to get queue name from objects not from queue.")
-        return None
 
 
 class ObjectNotFoundError(Exception):
