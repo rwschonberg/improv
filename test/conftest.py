@@ -28,8 +28,6 @@ def setup_store(server_port_num):
             "redis-server",
             "--save",
             '""',
-            "--dbfilename",
-            "cinonexistent.rdb",
             "--port",
             str(server_port_num),
             "--maxmemory",

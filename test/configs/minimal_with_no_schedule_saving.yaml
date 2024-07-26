@@ -11,4 +11,5 @@ connections:
   Generator.q_out: [Processor.q_in]
 
 redis_config:
-  db_filename: custom_dbfilename.rdb
+  enable_saving: True
+  fsync_frequency: no_schedule

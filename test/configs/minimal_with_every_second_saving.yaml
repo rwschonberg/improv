@@ -1,0 +1,15 @@
+actors:
+  Generator:
+    package: actors.sample_generator
+    class: Generator
+
+  Processor:
+    package: actors.sample_processor
+    class: Processor
+
+connections:
+  Generator.q_out: [Processor.q_in]
+
+redis_config:
+  enable_saving: True
+  fsync_frequency: every_second

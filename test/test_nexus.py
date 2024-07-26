@@ -1,4 +1,5 @@
 import glob
+import shutil
 import time
 import os
 import pytest
@@ -9,7 +10,6 @@ import yaml
 
 from improv.nexus import Nexus
 from improv.store import StoreInterface
-
 
 # from improv.actor import Actor
 # from improv.store import StoreInterface
@@ -425,7 +425,7 @@ def test_unspecified_port_default_busy(caplog, setdir, ports, setup_store):
     )
 
 
-def test_no_dumpfile_by_default(caplog, setdir, ports):
+def test_no_aof_dir_by_default(caplog, setdir, ports):
     nex = Nexus("test")
     nex.createNexus(
         file="minimal.yaml",
@@ -436,10 +436,11 @@ def test_no_dumpfile_by_default(caplog, setdir, ports):
 
     nex.destroyNexus()
 
-    assert "dump.rdb" not in os.listdir(".")
+    assert "appendonlydir" not in os.listdir(".")
+    assert all(["improv_persistence_" not in name for name in os.listdir(".")])
 
 
-def test_default_dumpfile_if_none_specified(caplog, setdir, ports, server_port_num):
+def test_default_aof_dir_if_none_specified(caplog, setdir, ports, server_port_num):
     nex = Nexus("test")
     nex.createNexus(
         file="minimal_with_redis_saving.yaml",
@@ -455,23 +456,20 @@ def test_default_dumpfile_if_none_specified(caplog, setdir, ports, server_port_n
 
     nex.destroyNexus()
 
-    logging.info(os.getcwd() + "\n")
-    logging.info(os.listdir("."))
+    assert "appendonlydir" in os.listdir(".")
 
-    assert "dump.rdb" in os.listdir(".")
-
-    if "dump.rdb" in os.listdir("."):
-        os.remove("dump.rdb")
+    if "appendonlydir" in os.listdir("."):
+        shutil.rmtree("appendonlydir")
     else:
         logging.info("didn't find dbfilename")
 
     logging.info("exited test")
 
 
-def test_specify_static_dumpfile(caplog, setdir, ports, server_port_num):
+def test_specify_static_aof_dir(caplog, setdir, ports, server_port_num):
     nex = Nexus("test")
     nex.createNexus(
-        file="minimal_with_custom_dbfilename.yaml",
+        file="minimal_with_custom_aof_dirname.yaml",
         store_size=10000000,
         control_port=ports[0],
         output_port=ports[1],
@@ -484,20 +482,20 @@ def test_specify_static_dumpfile(caplog, setdir, ports, server_port_num):
 
     nex.destroyNexus()
 
-    assert "custom_dbfilename.rdb" in os.listdir(".")
+    assert "custom_aof_dirname" in os.listdir(".")
 
-    if "custom_dbfilename.rdb" in os.listdir("."):
-        os.remove("custom_dbfilename.rdb")
+    if "custom_aof_dirname" in os.listdir("."):
+        shutil.rmtree("custom_aof_dirname")
     else:
         logging.info("didn't find dbfilename")
 
     logging.info("exited test")
 
 
-def test_use_ephemeral_dbfile(caplog, setdir, ports, server_port_num):
+def test_use_ephemeral_aof_dir(caplog, setdir, ports, server_port_num):
     nex = Nexus("test")
     nex.createNexus(
-        file="minimal_with_ephemeral_dbfilename.yaml",
+        file="minimal_with_ephemeral_aof_dirname.yaml",
         store_size=10000000,
         control_port=ports[0],
         output_port=ports[1],
@@ -510,14 +508,74 @@ def test_use_ephemeral_dbfile(caplog, setdir, ports, server_port_num):
 
     nex.destroyNexus()
 
-    logging.info(os.getcwd() + "\n")
-    logging.info(os.listdir("."))
+    assert any(["improv_persistence_" in name for name in os.listdir(".")])
 
-    assert any([".rdb" in filename for filename in os.listdir(".")])
-
-    [os.remove(db_filename) for db_filename in glob.glob("*.rdb")]
+    [shutil.rmtree(db_filename) for db_filename in glob.glob("improv_persistence_*")]
 
     logging.info("completed ephemeral db test")
+
+
+def test_save_no_schedule(caplog, setdir, ports, server_port_num):
+    nex = Nexus("test")
+    nex.createNexus(
+        file="minimal_with_no_schedule_saving.yaml",
+        store_size=10000000,
+        control_port=ports[0],
+        output_port=ports[1],
+    )
+
+    store = StoreInterface(server_port_num=server_port_num)
+
+    fsync_schedule = store.client.config_get("appendfsync")
+
+    nex.destroyNexus()
+
+    assert "appendonlydir" in os.listdir(".")
+    shutil.rmtree("appendonlydir")
+
+    assert fsync_schedule["appendfsync"] == "no"
+
+
+def test_save_every_second(caplog, setdir, ports, server_port_num):
+    nex = Nexus("test")
+    nex.createNexus(
+        file="minimal_with_every_second_saving.yaml",
+        store_size=10000000,
+        control_port=ports[0],
+        output_port=ports[1],
+    )
+
+    store = StoreInterface(server_port_num=server_port_num)
+
+    fsync_schedule = store.client.config_get("appendfsync")
+
+    nex.destroyNexus()
+
+    assert "appendonlydir" in os.listdir(".")
+    shutil.rmtree("appendonlydir")
+
+    assert fsync_schedule["appendfsync"] == "everysec"
+
+
+def test_save_every_write(caplog, setdir, ports, server_port_num):
+    nex = Nexus("test")
+    nex.createNexus(
+        file="minimal_with_every_write_saving.yaml",
+        store_size=10000000,
+        control_port=ports[0],
+        output_port=ports[1],
+    )
+
+    store = StoreInterface(server_port_num=server_port_num)
+
+    fsync_schedule = store.client.config_get("appendfsync")
+
+    nex.destroyNexus()
+
+    assert "appendonlydir" in os.listdir(".")
+    shutil.rmtree("appendonlydir")
+
+    assert fsync_schedule["appendfsync"] == "always"
 
 
 @pytest.mark.skip(reason="Nexus no longer deletes files on shutdown. Nothing to test.")

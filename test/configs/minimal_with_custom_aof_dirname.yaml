@@ -11,4 +11,4 @@ connections:
   Generator.q_out: [Processor.q_in]
 
 redis_config:
-  generate_ephemeral_db_filename: True
+  aof_dirname: custom_aof_dirname

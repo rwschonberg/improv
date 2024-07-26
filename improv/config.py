@@ -146,27 +146,38 @@ class Config:
     def redis_saving_enabled(self):
         if "redis_config" in self.config.keys():
             return (
-                "enable_saving" in self.config["redis_config"]
-                and self.config["redis_config"]["enable_saving"]
+                self.config["redis_config"]["enable_saving"]
+                if "enable_saving" in self.config["redis_config"]
+                else None
             )
-        return None
 
-    def generate_ephemeral_db_filename(self):
+    def generate_ephemeral_aof_dirname(self):
         if "redis_config" in self.config.keys():
             return (
-                "generate_ephemeral_db_filename" in self.config["redis_config"]
-                and self.config["redis_config"]["generate_ephemeral_db_filename"]
+                self.config["redis_config"]["generate_ephemeral_aof_dirname"]
+                if "generate_ephemeral_aof_dirname" in self.config["redis_config"]
+                else None
             )
         return False
 
-    def get_redis_db_filename(self):
+    def get_redis_aof_dirname(self):
         if "redis_config" in self.config.keys():
             return (
-                self.config["redis_config"]["db_filename"]
-                if "db_filename" in self.config["redis_config"]
+                self.config["redis_config"]["aof_dirname"]
+                if "aof_dirname" in self.config["redis_config"]
                 else None
             )
         return None
+
+    def get_redis_fsync_frequency(self):
+        if "redis_config" in self.config.keys():
+            frequency = (
+                self.config["redis_config"]["fsync_frequency"]
+                if "fsync_frequency" in self.config["redis_config"]
+                else None
+            )
+
+            return frequency
 
     @staticmethod
     def get_default_redis_port():

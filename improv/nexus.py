@@ -30,10 +30,11 @@ class Nexus:
     """Main server class for handling objects in improv"""
 
     def __init__(self, name="Server"):
+        self.redis_fsync_frequency = None
         self.store = None
         self.config = None
         self.name = name
-        self.redis_dumpfile = None
+        self.aof_dir = None
         self.redis_saving_enabled = False
 
     def __str__(self):
@@ -238,36 +239,69 @@ class Nexus:
     def configure_redis_persistence(self):
         # invalid configs: specifying filename and using an ephemeral filename,
         # specifying that saving is off but providing either filename option
-        db_filename = self.config.get_redis_db_filename()
-        generate_unique_filename = self.config.generate_ephemeral_db_filename()
+        aof_dirname = self.config.get_redis_aof_dirname()
+        generate_unique_dirname = self.config.generate_ephemeral_aof_dirname()
         redis_saving_enabled = self.config.redis_saving_enabled()
+        redis_fsync_frequency = self.config.get_redis_fsync_frequency()
 
-        if db_filename and generate_unique_filename:
+        if aof_dirname and generate_unique_dirname:
             logger.error(
-                "Cannot both generate a unique filename and use the one provided."
+                "Cannot both generate a unique dirname and use the one provided."
             )
-            raise Exception("Cannot use unique filename and use the one provided.")
+            raise Exception("Cannot use unique dirname and use the one provided.")
 
-        if db_filename or generate_unique_filename:
-            redis_saving_enabled = True
+        if aof_dirname or generate_unique_dirname or redis_fsync_frequency:
+            if redis_saving_enabled is None:
+                redis_saving_enabled = True
+            elif not redis_saving_enabled:
+                logger.error(
+                    "Invalid configuration. Cannot save to disk with saving disabled."
+                )
+                raise Exception("Cannot persist to disk with saving disabled.")
 
         self.redis_saving_enabled = redis_saving_enabled
 
-        if not redis_saving_enabled and (db_filename or generate_unique_filename):
-            logger.error(
-                "Invalid configuration. Cannot save to a file with saving disabled."
+        if redis_fsync_frequency and redis_fsync_frequency not in [
+            "every_write",
+            "every_second",
+            "no_schedule",
+        ]:
+            logger.error("Cannot use unknown fsync frequency ", redis_fsync_frequency)
+            raise Exception(
+                "Cannot use unknown fsync frequency ", redis_fsync_frequency
             )
-            raise Exception("Cannot save to a file with saving disabled.")
 
-        if db_filename:
-            self.redis_dumpfile = db_filename
-        elif generate_unique_filename:
-            self.redis_dumpfile = str(uuid.uuid1()) + ".rdb"
+        if redis_fsync_frequency is None:
+            redis_fsync_frequency = "no_schedule"
 
-        if self.redis_saving_enabled and self.redis_dumpfile is not None:
-            logger.info("Redis saving enabled. Saving to file " + self.redis_dumpfile)
+        if redis_fsync_frequency == "every_write":
+            self.redis_fsync_frequency = "always"
+        elif redis_fsync_frequency == "every_second":
+            self.redis_fsync_frequency = "everysec"
+        elif redis_fsync_frequency == "no_schedule":
+            self.redis_fsync_frequency = "no"
+        else:
+            logger.error("Unknown fsync frequency ", redis_fsync_frequency)
+            raise Exception("Unknown fsync frequency ", redis_fsync_frequency)
+
+        if aof_dirname:
+            self.aof_dir = aof_dirname
+        elif generate_unique_dirname:
+            self.aof_dir = "improv_persistence_" + str(uuid.uuid1())
+
+        if self.redis_saving_enabled and self.aof_dir is not None:
+            logger.info(
+                "Redis saving enabled. Saving to directory "
+                + self.aof_dir
+                + " on schedule "
+                + "'{}'".format(self.redis_fsync_frequency)
+            )
         elif self.redis_saving_enabled:
-            logger.info("Redis saving enabled with default dumpfile.")
+            logger.info(
+                "Redis saving enabled with default directory "
+                + "on schedule "
+                + "'{}'".format(self.redis_fsync_frequency)
+            )
         else:
             logger.info("Redis saving disabled.")
 
@@ -715,24 +749,33 @@ class Nexus:
             str(self.store_port),
             "--maxmemory",
             str(size),
+            "--save",  # this only turns off RDB, which we want permanently off
+            '""',
         ]
 
-        if self.redis_dumpfile is not None and len(self.redis_dumpfile) == 0:
-            raise Exception("Save file specified but no filename given.")
+        if self.aof_dir is not None and len(self.aof_dir) == 0:
+            raise Exception("Persistence directory specified but no filename given.")
 
-        if (
-            not self.redis_saving_enabled
-        ):  # the default behavior - do not persist db state.
-            subprocess_command += ["--save", '""']
-            logger.info("Redis dump file disabled.")
+        if self.aof_dir is not None:  # use specified (possibly pre-existing) file
+            # subprocess_command += ["--save", "1 1"]
+            subprocess_command += [
+                "--appendonly",
+                "yes",
+                "--appendfsync",
+                self.redis_fsync_frequency,
+                "--appenddirname",
+                self.aof_dir,
+            ]
+            logger.info("Redis persistence directory set to {}".format(self.aof_dir))
         elif (
-            self.redis_dumpfile is not None
-        ):  # use specified (possibly pre-existing) file
-            # subprocess_command += ["--save", "1 1"]
-            subprocess_command += ["--dbfilename", self.redis_dumpfile]
-            logger.info("Redis dump file set to {}".format(self.redis_dumpfile))
-        else:  # just use the (possibly preexisting) default dump.rdb file
-            # subprocess_command += ["--save", "1 1"]
+            self.redis_saving_enabled
+        ):  # just use the (possibly preexisting) default aof dir
+            subprocess_command += [
+                "--appendonly",
+                "yes",
+                "--appendfsync",
+                self.redis_fsync_frequency,
+            ]
             logger.info("Proceeding with using default Redis dump file.")
 
         logger.info(
