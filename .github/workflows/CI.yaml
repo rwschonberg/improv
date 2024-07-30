@@ -105,7 +105,17 @@ jobs:
           pip install flake8 pytest
           python3 -m build
           pip install -e .[tests,lint] --no-binary pyzmq
-      - name: Test with pytest
+      - name: Test with pytest (Windows)
+        if: startsWith(matrix.os, 'windows')
+        shell: wsl-bash {0}
+        run: |
+          python -m pytest --cov=improv
+      - name: Test with pytest (Ubuntu)
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          python -m pytest --cov=improv
+      - name: Test with pytest (macOS)
+        if: startsWith(matrix.os, 'macos')
         run: |
           python -m pytest --cov=improv 
 
