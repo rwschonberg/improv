@@ -128,7 +128,7 @@ class TUI(App, inherit_bindings=False):
     View class for the text user interface. Implemented as a Textual app.
     """
 
-    def __init__(self, control_port, output_port, logging_port):
+    def __init__(self, control_port, output_port, logging_port, actor_in_port):
         super().__init__()
         self.title = "improv console"
         self.control_port = TUI._sanitize_addr(control_port)

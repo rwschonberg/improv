@@ -45,7 +45,7 @@ class Config:
         self.connections = {}
         self.hasGUI = False
 
-    def createConfig(self):
+    def create_config(self):
         """Read yaml config file and create config for Nexus
         TODO: check for config file compliance, error handle it
         beyond what we have below.
@@ -114,20 +114,14 @@ class Config:
 
         return 0
 
-    def addParams(self, type, param):
-        """Function to add paramter param of type type
-        TODO: Future work
-        """
-        pass
-
-    def saveActors(self):
+    def save_actors(self):
         """Saves the actors config to a specific file."""
         wflag = True
         saveFile = self.configFile.split(".")[0]
         pathName = saveFile + "_actors.yaml"
 
         for a in self.actors.values():
-            wflag = a.saveConfigModules(pathName, wflag)
+            wflag = a.save_config_modules(pathName, wflag)
 
     def use_plasma(self):
         return "plasma_config" in self.config.keys()
@@ -191,11 +185,11 @@ class ConfigModule:
         self.classname = classname
         self.options = options
 
-    def saveConfigModules(self, pathName, wflag):
+    def save_config_modules(self, path_name, wflag):
         """Loops through each actor to save the modules to the config file.
 
         Args:
-            pathName:
+            path_name:
             wflag (bool):
 
         Returns:
@@ -213,7 +207,7 @@ class ConfigModule:
         for key, value in self.options.items():
             cfg[self.name].update({key: value})
 
-        with open(pathName, writeOption) as file:
+        with open(path_name, writeOption) as file:
             yaml.dump(cfg, file)
 
         return wflag

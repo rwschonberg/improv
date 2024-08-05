@@ -1,16 +1,34 @@
+from __future__ import annotations
+
 import time
 import signal
 import asyncio
 import traceback
 from queue import Empty
 
+import zmq
+from zmq import SocketOption
+
 import improv.store
+from improv.link import ZmqLink
+from improv.messaging import ActorStateMsg, ActorStateReplyMsg, ActorSignalReplyMsg
 from improv.store import StoreInterface
 
 import logging
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+
+# TODO construct log handler within post-fork setup based on
+# TODO arguments sent to actor by nexus
+# TODO and add it below; fine to leave logger here as-is
+
+
+class LinkInfo:
+    def __init__(self, link_name, link_topic):
+        self.link_name = link_name
+        self.link_topic = link_topic
 
 
 class AbstractActor:
@@ -49,7 +67,7 @@ class AbstractActor:
         """
         return self.name + ": " + str(self.links.keys())
 
-    def setStoreInterface(self, client):
+    def set_store_interface(self, client):
         """Sets the client interface to the store
 
         Args:
@@ -57,7 +75,7 @@ class AbstractActor:
         """
         self.client = client
 
-    def _getStoreInterface(self):
+    def _get_store_interface(self):
         # TODO: Where do we require this be run? Add a Signal and include in RM?
         if not self.client:
             store = None
@@ -65,9 +83,9 @@ class AbstractActor:
                 store = StoreInterface(self.name, self.store_port_num)
             else:
                 store = StoreInterface(self.name, self.store_loc)
-            self.setStoreInterface(store)
+            self.set_store_interface(store)
 
-    def setLinks(self, links):
+    def set_links(self, links):
         """General full dict set for links
 
         Args:
@@ -75,7 +93,7 @@ class AbstractActor:
         """
         self.links = links
 
-    def setCommLinks(self, q_comm, q_sig):
+    def set_comm_links(self, q_comm, q_sig):
         """Set explicit communication links to/from Nexus (q_comm, q_sig)
 
         Args:
@@ -86,7 +104,7 @@ class AbstractActor:
         self.q_sig = q_sig
         self.links.update({"q_comm": self.q_comm, "q_sig": self.q_sig})
 
-    def setLinkIn(self, q_in):
+    def set_link_in(self, q_in):
         """Set the dedicated input queue
 
         Args:
@@ -95,7 +113,7 @@ class AbstractActor:
         self.q_in = q_in
         self.links.update({"q_in": self.q_in})
 
-    def setLinkOut(self, q_out):
+    def set_link_out(self, q_out):
         """Set the dedicated output queue
 
         Args:
@@ -104,7 +122,7 @@ class AbstractActor:
         self.q_out = q_out
         self.links.update({"q_out": self.q_out})
 
-    def setLinkWatch(self, q_watch):
+    def set_link_watch(self, q_watch):
         """Set the dedicated watchout queue
 
         Args:
@@ -113,7 +131,7 @@ class AbstractActor:
         self.q_watchout = q_watch
         self.links.update({"q_watchout": self.q_watchout})
 
-    def addLink(self, name, link):
+    def add_link(self, name, link):
         """Function provided to add additional data links by name
         using same form as q_in or q_out
         Must be done during registration and not during run
@@ -126,31 +144,13 @@ class AbstractActor:
         # User can then use: self.my_queue = self.links['my_queue'] in a setup fcn,
         # or continue to reference it using self.links['my_queue']
 
-    def getLinks(self):
+    def get_links(self):
         """Returns dictionary of links for the current actor
 
         Returns:
             dict: dictionary of links
         """
         return self.links
-
-    def put(self, idnames, q_out=None, save=None):
-        """TODO: This is deprecated? Prefer using Links explicitly"""
-        if save is None:
-            save = [False] * len(idnames)
-
-        if len(save) < len(idnames):
-            save = save + [False] * (len(idnames) - len(save))
-
-        if q_out is None:
-            q_out = self.q_out
-
-        q_out.put(idnames)
-
-        for i in range(len(idnames)):
-            if save[i]:
-                if self.q_watchout:
-                    self.q_watchout.put(idnames[i])
 
     def setup(self):
         """Essenitally the registration process
@@ -174,7 +174,7 @@ class AbstractActor:
         """
         pass
 
-    def changePriority(self):
+    def change_priority(self):
         """Try to lower this process' priority
         Only changes priority if lower_priority is set
         TODO: Only works on unix machines. Add Windows functionality
@@ -188,6 +188,15 @@ class AbstractActor:
             logger.info("Lowered priority of this process: {}".format(self.name))
             print("Lowered ", os.getpid(), " for ", self.name)
 
+    def register_with_nexus(self):
+        pass
+
+    def register_with_broker(self):
+        pass
+
+    def setup_links(self):
+        pass
+
 
 class ManagedActor(AbstractActor):
     def __init__(self, *args, **kwargs):
@@ -196,15 +205,130 @@ class ManagedActor(AbstractActor):
         # Define dictionary of actions for the RunManager
         self.actions = {}
         self.actions["setup"] = self.setup
-        self.actions["run"] = self.runStep
+        self.actions["run"] = self.run_step
         self.actions["stop"] = self.stop
+        self.nexus_sig_port: int = None
 
     def run(self):
-        with RunManager(self.name, self.actions, self.links):
+        self.register_with_nexus()
+        self.register_with_broker()
+        self.setup_links()  # TODO: write this
+        with RunManager(self.name, self.actions, self.links, self.nexus_sig_port):
             pass
 
-    def runStep(self):
+    def run_step(self):
         raise NotImplementedError
+
+
+class ZmqActor(ManagedActor):
+    def __init__(
+        self,
+        nexus_comm_port,
+        broker_sub_port,
+        broker_pub_port,
+        outgoing_links,
+        incoming_links,
+        broker_host="localhost",
+        nexus_comm_host="localhost",
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.broker_pub_socket: zmq.Socket | None = None
+        self.zmq_context: zmq.Context | None = None
+        self.nexus_comm_host: str = nexus_comm_host
+        self.nexus_comm_port: int = nexus_comm_port
+        self.nexus_sig_port: int | None = None
+        self.nexus_comm_socket: zmq.Socket | None = None
+        self.nexus_sig_socket: zmq.Socket | None = None
+        self.broker_sub_port: int = broker_sub_port
+        self.broker_pub_port: int = broker_pub_port
+        self.broker_host: str = broker_host
+        self.outgoing_links: list[LinkInfo] = outgoing_links
+        self.incoming_links: list[LinkInfo] = incoming_links
+        self.incoming_sockets: dict[str, zmq.Socket] = dict()
+
+        # Redefine dictionary of actions for the RunManager
+        self.actions = {"setup": self.setup, "run": self.run_step, "stop": self.stop}
+        logger.info(f"{self.name} outgoing {str(self.outgoing_links)}")
+        logger.info(f"{self.name} incoming {str(self.incoming_links)}")
+
+    def register_with_nexus(self):
+        logger.info(f"Actor {self.name} registering with nexus")
+        self.zmq_context = zmq.Context()
+        self.zmq_context.setsockopt(SocketOption.LINGER, 0)
+        # create a REQ socket pointed at nexus' global actor in port
+        self.nexus_comm_socket = self.zmq_context.socket(zmq.REQ)
+        self.nexus_comm_socket.connect(
+            f"tcp://{self.nexus_comm_host}:{self.nexus_comm_port}"
+        )
+
+        # create a REP socket for comms from Nexus and save its state
+        self.nexus_sig_socket = self.zmq_context.socket(zmq.REP)
+        self.nexus_sig_socket.bind("tcp://*:0")  # find any available port
+        sig_socket_addr = self.nexus_sig_socket.getsockopt_string(
+            SocketOption.LAST_ENDPOINT
+        )
+        self.nexus_sig_port = int(sig_socket_addr.split(":")[-1])
+
+        # build and send a message to nexus
+        actor_state = ActorStateMsg(
+            self.name,
+            Signal.waiting(),
+            self.nexus_sig_port,
+            "comms opened and actor ready to initialize",
+        )
+
+        self.nexus_comm_socket.send_pyobj(actor_state)
+
+        rep: ActorStateReplyMsg = self.nexus_comm_socket.recv_pyobj()
+        logger.info(
+            f"Got response from nexus:\n"
+            f"Status: {rep.status}\n"
+            f"Info: {rep.info}\n"
+        )
+
+        self.links["q_comm"] = ZmqLink(self.nexus_comm_socket, f"{self.name}.q_comm")
+        self.links["q_sig"] = ZmqLink(self.nexus_sig_socket, f"{self.name}.q_sig")
+
+        logger.info(f"Actor {self.name} registered with Nexus")
+
+    def register_with_broker(self):  # really opening sockets here
+        logger.info(f"Actor {self.name} registering with broker")
+        if len(self.outgoing_links) > 0:
+            self.broker_pub_socket = self.zmq_context.socket(zmq.PUB)
+            self.broker_pub_socket.connect(
+                f"tcp://{self.broker_host}:{self.broker_sub_port}"
+            )
+
+        for incoming_link in self.incoming_links:
+            new_socket: zmq.Socket = self.zmq_context.socket(zmq.SUB)
+            new_socket.connect(f"tcp://{self.broker_host}:{self.broker_pub_port}")
+            new_socket.subscribe(incoming_link.link_topic)
+            self.incoming_sockets[incoming_link.link_name] = new_socket
+        logger.info(f"Actor {self.name} registered with broker")
+
+    def setup_links(self):
+        logger.info(f"Actor {self.name} setting up links")
+        for outgoing_link in self.outgoing_links:
+            self.links[outgoing_link.link_name] = ZmqLink(
+                self.broker_pub_socket,
+                outgoing_link.link_name,
+                outgoing_link.link_topic,
+            )
+
+        for incoming_link in self.incoming_links:
+            self.links[incoming_link.link_name] = ZmqLink(
+                self.incoming_sockets[incoming_link.link_name],
+                incoming_link.link_name,
+                incoming_link.link_topic,
+            )
+
+        if "q_out" in self.links.keys():
+            self.q_out = self.links["q_out"]
+        if "q_in" in self.links.keys():
+            self.q_in = self.links["q_in"]
+        logger.info(f"Actor {self.name} finished setting up links")
 
 
 class AsyncActor(AbstractActor):
@@ -214,7 +338,7 @@ class AsyncActor(AbstractActor):
         # Define dictionary of actions for the RunManager
         self.actions = {}
         self.actions["setup"] = self.setup
-        self.actions["run"] = self.runStep
+        self.actions["run"] = self.run_step
         self.actions["stop"] = self.stop
 
     def run(self):
@@ -231,7 +355,7 @@ class AsyncActor(AbstractActor):
         """
         pass
 
-    async def runStep(self):
+    async def run_step(self):
         raise NotImplementedError
 
     async def stop(self):
@@ -243,10 +367,13 @@ Actor = ManagedActor
 
 
 class RunManager:
-    def __init__(self, name, actions, links, runStoreInterface=None, timeout=1e-6):
+    def __init__(
+        self, name, actions, links, nexus_sig_port, runStoreInterface=None, timeout=1e-6
+    ):
         self.run = False
         self.stop = False
         self.config = False
+        self.nexus_sig_port = nexus_sig_port
 
         self.actorName = name
         logger.debug("RunManager for {} created".format(self.actorName))
@@ -283,7 +410,17 @@ class RunManager:
                     if self.runStoreInterface:
                         self.runStoreInterface()
                     self.actions["setup"]()
-                    self.q_comm.put([Signal.ready()])
+                    self.q_comm.put(
+                        ActorStateMsg(
+                            self.actorName, Signal.ready(), self.nexus_sig_port, ""
+                        )
+                    )
+                    res = self.q_comm.get()
+                    logger.info(
+                        f"Actor {res.actor_name} got state update reply:\n"
+                        f"Status: {res.status}\n"
+                        f"Info: {res.info}\n"
+                    )
                 except Exception as e:
                     logger.error("Actor {} error in setup: {}".format(an, e))
                     logger.error(traceback.format_exc())
@@ -291,7 +428,9 @@ class RunManager:
 
             # Check for new Signals received from Nexus
             try:
-                signal = self.q_sig.get(timeout=self.timeout)
+                signal_msg = self.q_sig.get(timeout=self.timeout)
+                signal = signal_msg.signal
+                self.q_sig.put(ActorSignalReplyMsg(an, signal, "OK", ""))
                 logger.debug("{} received Signal {}".format(self.actorName, signal))
                 if signal == Signal.run():
                     self.run = True
@@ -311,10 +450,14 @@ class RunManager:
                 elif signal == Signal.resume():  # currently treat as same as run
                     logger.warning("Received resume signal, resuming")
                     self.run = True
+                elif signal == Signal.status():
+                    logger.info(f"Actor {self.actorName} received status request")
             except KeyboardInterrupt:
                 break
             except Empty:
                 pass  # No signal from Nexus
+            except TimeoutError:
+                pass  # No signal from Nexus over zmq
 
         return None
 
@@ -473,3 +616,11 @@ class Signal:
     @staticmethod
     def stop_success():
         return "stop success"
+
+    @staticmethod
+    def status():
+        return "status"
+
+    @staticmethod
+    def waiting():
+        return "waiting"

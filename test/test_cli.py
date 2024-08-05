@@ -7,18 +7,10 @@ import asyncio
 import signal
 import improv.cli as cli
 
-from test_nexus import ports
+from conftest import ports
 
 SERVER_WARMUP = 16
 SERVER_TIMEOUT = 16
-
-
-@pytest.fixture
-def setdir():
-    prev = os.getcwd()
-    os.chdir(os.path.dirname(__file__))
-    yield None
-    os.chdir(prev)
 
 
 @pytest.fixture
@@ -28,9 +20,8 @@ async def server(setdir, ports):
     Requires the actor path command line argument and so implicitly
     tests that as well.
     """
-    os.chdir("configs")
 
-    control_port, output_port, logging_port = ports
+    control_port, output_port, logging_port, actor_in_port = ports
 
     # start server
     server_opts = [
@@ -64,8 +55,8 @@ async def server(setdir, ports):
 @pytest.fixture
 async def cli_args(setdir, ports):
     logfile = "tmp.log"
-    control_port, output_port, logging_port = ports
-    config_file = "configs/minimal.yaml"
+    control_port, output_port, logging_port, actor_in_port = ports
+    config_file = "minimal.yaml"
     Args = namedtuple(
         "cli_args",
         "control_port output_port logging_port logfile configfile actor_path",
@@ -86,7 +77,7 @@ def test_configfile_required(setdir):
         cli.parse_cli_args(["server", "does_not_exist.yaml"])
 
 
-def test_multiple_actor_path(setdir):
+def test_multiple_actor_path(set_dir_config_parent):
     args = cli.parse_cli_args(
         ["run", "-a", "actors", "-a", "configs", "configs/blank_file.yaml"]
     )
@@ -113,7 +104,7 @@ def test_multiple_actor_path(setdir):
     ],
 )
 def test_can_override_ports(mode, flag, expected, setdir):
-    file = "configs/blank_file.yaml"
+    file = "blank_file.yaml"
     localhost = "127.0.0.1:"
     params = {
         "-c": "control_port",
@@ -142,7 +133,7 @@ def test_can_override_ports(mode, flag, expected, setdir):
     ],
 )
 def test_non_port_is_error(mode, flag, expected):
-    file = "configs/blank_file.yaml"
+    file = "blank_file.yaml"
     with pytest.raises(SystemExit):
         cli.parse_cli_args([mode, flag, expected, file])
 
@@ -201,8 +192,7 @@ async def test_improv_kill_empties_list(server):
 
 
 async def test_improv_run_writes_stderr_to_log(setdir, ports):
-    os.chdir("configs")
-    control_port, output_port, logging_port = ports
+    control_port, output_port, logging_port, actor_in_port = ports
 
     # start server
     server_opts = [

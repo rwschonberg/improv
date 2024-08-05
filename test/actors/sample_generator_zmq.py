@@ -52,7 +52,7 @@ class Generator(ZmqActor):
         # will overwrite previous files with the same name.
         return 0
 
-    def runStep(self):
+    def run_step(self):
         """Generates additional data after initial setup data is exhausted.
 
         Data is of a different form as the setup data in that although it is
@@ -62,12 +62,12 @@ class Generator(ZmqActor):
         """
 
         if self.frame_num < np.shape(self.data)[0]:
-            data_id = self.client.put(
-                self.data[self.frame_num], str(f"Gen_raw: {self.frame_num}")
-            )
+            data_id = self.client.put(self.data[self.frame_num])
             try:
-                self.q_out.put([[data_id, str(self.frame_num)]])
+                self.q_out.put(data_id)
+                logger.info(f"Sent {self.data[self.frame_num]} with key {data_id}")
                 self.frame_num += 1
+
             except Exception as e:
                 logger.error(f"Generator Exception: {e}")
         else:

@@ -7,6 +7,7 @@ actors:
     package: actors.sample_processor_zmq
     class: Processor
 
+
 connections:
   Generator-Processor:
     sources:

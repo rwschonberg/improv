@@ -2,77 +2,19 @@ import glob
 import shutil
 import time
 import os
+
 import pytest
 import logging
 import subprocess
 import signal
 import yaml
+import zmq
+from zmq import SocketOption
 
+from improv.messaging import ActorStateMsg, ActorStateReplyMsg
 from improv.nexus import Nexus
 from improv.store import StoreInterface
-
-# from improv.actor import Actor
-# from improv.store import StoreInterface
-
-SERVER_COUNTER = 0
-
-
-@pytest.fixture
-def ports():
-    global SERVER_COUNTER
-    CONTROL_PORT = 5555
-    OUTPUT_PORT = 5556
-    LOGGING_PORT = 5557
-    yield (
-        CONTROL_PORT + SERVER_COUNTER,
-        OUTPUT_PORT + SERVER_COUNTER,
-        LOGGING_PORT + SERVER_COUNTER,
-    )
-    SERVER_COUNTER += 3
-
-
-@pytest.fixture
-def setdir():
-    prev = os.getcwd()
-    os.chdir(os.path.dirname(__file__) + "/configs")
-    yield None
-    os.chdir(prev)
-
-
-@pytest.fixture
-def sample_nex(setdir, ports):
-    nex = Nexus("test")
-    nex.createNexus(
-        file="good_config.yaml",
-        store_size=40000000,
-        control_port=ports[0],
-        output_port=ports[1],
-    )
-    yield nex
-    nex.destroyNexus()
-
-
-# @pytest.fixture
-# def setup_store(setdir):
-#     """ Fixture to set up the store subprocess with 10 mb.
-
-#     This fixture runs a subprocess that instantiates the store with a
-#     memory of 10 megabytes. It specifies that "/tmp/store/" is the
-#     location of the store socket.
-
-#     Yields:
-#         StoreInterface: An instance of the store.
-
-#     TODO:
-#         Figure out the scope.
-#     """
-#     setdir
-#     p = subprocess.Popen(
-#         ['plasma_store', '-s', '/tmp/store/', '-m', str(10000000)],\
-#         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-#     store = StoreInterface(store_loc = "/tmp/store/")
-#     yield store
-#     p.kill()
+import conftest
 
 
 def test_init(setdir):
@@ -85,32 +27,27 @@ def test_init(setdir):
     "cfg_name",
     [
         "good_config.yaml",
-        "good_config_plasma.yaml",
     ],
 )
-def test_createNexus(setdir, ports, cfg_name):
+def test_create_nexus(setdir, ports, cfg_name):
     nex = Nexus("test")
-    nex.createNexus(file=cfg_name, control_port=ports[0], output_port=ports[1])
+    nex.create_nexus(file=cfg_name, control_port=ports[0], output_port=ports[1])
     assert list(nex.comm_queues.keys()) == [
         "GUI_comm",
-        "Acquirer_comm",
-        "Analysis_comm",
     ]
-    assert list(nex.sig_queues.keys()) == ["Acquirer_sig", "Analysis_sig"]
-    assert list(nex.data_queues.keys()) == ["Acquirer.q_out", "Analysis.q_in"]
     assert list(nex.actors.keys()) == ["Acquirer", "Analysis"]
     assert list(nex.flags.keys()) == ["quit", "run", "load"]
     assert nex.processes == []
-    nex.destroyNexus()
+    nex.destroy_nexus()
     assert True
 
 
 def test_config_logged(setdir, ports, caplog):
     nex = Nexus("test")
-    nex.createNexus(
+    nex.create_nexus(
         file="minimal_with_settings.yaml", control_port=ports[0], output_port=ports[1]
     )
-    nex.destroyNexus()
+    nex.destroy_nexus()
     assert any(
         [
             "not_relevant: for testing purposes" in record.msg
@@ -119,17 +56,24 @@ def test_config_logged(setdir, ports, caplog):
     )
 
 
-def test_loadConfig(sample_nex):
+def test_load_config(sample_nex):
     nex = sample_nex
-    nex.loadConfig("good_config.yaml")
-    assert set(nex.comm_queues.keys()) == set(
-        ["Acquirer_comm", "Analysis_comm", "GUI_comm"]
+    nex.load_config("good_config.yaml")
+    assert set(nex.comm_queues.keys()) == {"GUI_comm"}
+    assert any(
+        [
+            link_info.link_name == "q_out"
+            for link_info in nex.outgoing_topics["Acquirer"]
+        ]
+    )
+    assert any(
+        [link_info.link_name == "q_in" for link_info in nex.incoming_topics["Analysis"]]
     )
 
 
 def test_argument_config_precedence(setdir, ports):
     nex = Nexus("test")
-    nex.createNexus(
+    nex.create_nexus(
         file="minimal_with_settings.yaml",
         control_port=ports[0],
         output_port=ports[1],
@@ -137,7 +81,7 @@ def test_argument_config_precedence(setdir, ports):
         use_watcher=True,
     )
     cfg = nex.config.settings
-    nex.destroyNexus()
+    nex.destroy_nexus()
     assert cfg["control_port"] == ports[0]
     assert cfg["output_port"] == ports[1]
     assert cfg["store_size"] == 20_000_000
@@ -149,24 +93,26 @@ def test_settings_override_random_ports(setdir, ports):
     nex = Nexus("test")
     with open(config_file, "r") as ymlfile:
         cfg = yaml.safe_load(ymlfile)["settings"]
-    control_port, output_port = nex.createNexus(
+    control_port, output_port = nex.create_nexus(
         file=config_file, control_port=0, output_port=0
     )
-    nex.destroyNexus()
+    nex.destroy_nexus()
     assert control_port == cfg["control_port"]
     assert output_port == cfg["output_port"]
 
 
 # delete this comment later
 @pytest.mark.skip(reason="unfinished")
-def test_startNexus(sample_nex):
+def test_start_nexus(sample_nex):
     nex = sample_nex
-    nex.startNexus()
+    nex.start_nexus()
     assert [p.name for p in nex.processes] == ["Acquirer", "Analysis"]
-    nex.destroyNexus()
+    nex.destroy_nexus()
 
 
-# @pytest.mark.skip(reason="This test is unfinished")
+@pytest.mark.skip(
+    reason="This test is unfinished - it does not validate link structure"
+)
 @pytest.mark.parametrize(
     ("cfg_name", "actor_list", "link_list"),
     [
@@ -197,7 +143,7 @@ def test_config_construction(cfg_name, actor_list, link_list, setdir, ports):
     """
 
     nex = Nexus("test")
-    nex.createNexus(file=cfg_name, control_port=ports[0], output_port=ports[1])
+    nex.create_nexus(file=cfg_name, control_port=ports[0], output_port=ports[1])
     logging.info(cfg_name)
 
     # Check for actors
@@ -205,7 +151,7 @@ def test_config_construction(cfg_name, actor_list, link_list, setdir, ports):
     act_lst = list(nex.actors)
     lnk_lst = list(nex.sig_queues)
 
-    nex.destroyNexus()
+    nex.destroy_nexus()
 
     assert actor_list == act_lst
     assert link_list == lnk_lst
@@ -218,57 +164,43 @@ def test_config_construction(cfg_name, actor_list, link_list, setdir, ports):
     "cfg_name",
     [
         "single_actor.yaml",
-        "single_actor_plasma.yaml",
     ],
 )
 def test_single_actor(setdir, ports, cfg_name):
     nex = Nexus("test")
     with pytest.raises(AttributeError):
-        nex.createNexus(
+        nex.create_nexus(
             file="single_actor.yaml", control_port=ports[0], output_port=ports[1]
         )
 
-    nex.destroyNexus()
+    nex.destroy_nexus()
 
 
 def test_cyclic_graph(setdir, ports):
     nex = Nexus("test")
-    nex.createNexus(
+    nex.create_nexus(
         file="cyclic_config.yaml", control_port=ports[0], output_port=ports[1]
     )
     assert True
-    nex.destroyNexus()
+    nex.destroy_nexus()
 
 
 def test_blank_cfg(setdir, caplog, ports):
     nex = Nexus("test")
     with pytest.raises(TypeError):
-        nex.createNexus(
+        nex.create_nexus(
             file="blank_file.yaml", control_port=ports[0], output_port=ports[1]
         )
     assert any(
         ["The config file is empty" in record.msg for record in list(caplog.records)]
     )
-    nex.destroyNexus()
-
-
-# def test_hasGUI_True(setdir):
-#     setdir
-#     nex = Nexus("test")
-#     nex.createNexus(file="basic_demo_with_GUI.yaml")
-
-#     assert True
-#     nex.destroyNexus()
-
-# @pytest.mark.skip(reason="This test is unfinished.")
-# def test_hasGUI_False():
-#     assert True
+    nex.destroy_nexus()
 
 
 @pytest.mark.skip(reason="unfinished")
 def test_queue_message(setdir, sample_nex):
     nex = sample_nex
-    nex.startNexus()
+    nex.start_nexus()
     time.sleep(20)
     nex.setup()
     time.sleep(20)
@@ -278,7 +210,7 @@ def test_queue_message(setdir, sample_nex):
     acq_comm.put("Test Message")
 
     assert nex.comm_queues is None
-    nex.destroyNexus()
+    nex.destroy_nexus()
     assert True
 
 
@@ -286,7 +218,7 @@ def test_queue_message(setdir, sample_nex):
 @pytest.mark.skip(reason="This test is unfinished.")
 async def test_queue_readin(sample_nex, caplog):
     nex = sample_nex
-    nex.startNexus()
+    nex.start_nexus()
     # cqs = nex.comm_queues
     # assert cqs == None
     assert [record.msg for record in caplog.records] is None
@@ -326,22 +258,22 @@ def test_usehdd_False():
     assert True
 
 
-def test_startstore(caplog):
+def test_start_store(caplog):
     nex = Nexus("test")
-    nex._startStoreInterface(10000000)  # 10 MB store
+    nex._start_store_interface(10000000)  # 10 MB store
 
     assert any(
         "StoreInterface start successful" in record.msg for record in caplog.records
     )
 
     nex._closeStoreInterface()
-    nex.destroyNexus()
+    nex.destroy_nexus()
     assert True
 
 
-def test_closestore(caplog):
+def test_close_store(caplog):
     nex = Nexus("test")
-    nex._startStoreInterface(10000)
+    nex._start_store_interface(10000)
     nex._closeStoreInterface()
 
     assert any(
@@ -353,19 +285,20 @@ def test_closestore(caplog):
     with pytest.raises(AttributeError):
         nex.p_StoreInterface.put("Message in", "Message in Label")
 
-    nex.destroyNexus()
+    nex.destroy_nexus()
     assert True
 
 
 def test_specified_free_port(caplog, setdir, ports):
     nex = Nexus("test")
-    nex.createNexus(
+    nex.create_nexus(
         file="minimal_with_fixed_redis_port.yaml",
         store_size=10000000,
         control_port=ports[0],
         output_port=ports[1],
     )
 
+    nex.destroy_nexus()
     store = StoreInterface(server_port_num=6378)
     store.connect_to_server()
     key = store.put("port 6378")
@@ -387,14 +320,14 @@ def test_specified_free_port(caplog, setdir, ports):
 def test_specified_busy_port(caplog, setdir, ports, setup_store):
     nex = Nexus("test")
     with pytest.raises(Exception, match="Could not start Redis on specified port."):
-        nex.createNexus(
+        nex.create_nexus(
             file="minimal_with_fixed_default_redis_port.yaml",
             store_size=10000000,
             control_port=ports[0],
             output_port=ports[1],
         )
 
-    nex.destroyNexus()
+    nex.destroy_nexus()
 
     assert any(
         "Could not start Redis on specified port number." in record.msg
@@ -404,14 +337,14 @@ def test_specified_busy_port(caplog, setdir, ports, setup_store):
 
 def test_unspecified_port_default_free(caplog, setdir, ports):
     nex = Nexus("test")
-    nex.createNexus(
+    nex.create_nexus(
         file="minimal.yaml",
         store_size=10000000,
         control_port=ports[0],
         output_port=ports[1],
     )
 
-    nex.destroyNexus()
+    nex.destroy_nexus()
 
     assert any(
         "StoreInterface start successful on port 6379" in record.msg
@@ -421,14 +354,14 @@ def test_unspecified_port_default_free(caplog, setdir, ports):
 
 def test_unspecified_port_default_busy(caplog, setdir, ports, setup_store):
     nex = Nexus("test")
-    nex.createNexus(
+    nex.create_nexus(
         file="minimal.yaml",
         store_size=10000000,
         control_port=ports[0],
         output_port=ports[1],
     )
 
-    nex.destroyNexus()
+    nex.destroy_nexus()
     assert any(
         "StoreInterface start successful on port 6380" in record.msg
         for record in caplog.records
@@ -436,15 +369,20 @@ def test_unspecified_port_default_busy(caplog, setdir, ports, setup_store):
 
 
 def test_no_aof_dir_by_default(caplog, setdir, ports):
+    if "appendonlydir" in os.listdir("."):
+        shutil.rmtree("appendonlydir")
+    else:
+        logging.info("didn't find dbfilename")
+
     nex = Nexus("test")
-    nex.createNexus(
+    nex.create_nexus(
         file="minimal.yaml",
         store_size=10000000,
         control_port=ports[0],
         output_port=ports[1],
     )
 
-    nex.destroyNexus()
+    nex.destroy_nexus()
 
     assert "appendonlydir" not in os.listdir(".")
     assert all(["improv_persistence_" not in name for name in os.listdir(".")])
@@ -452,7 +390,7 @@ def test_no_aof_dir_by_default(caplog, setdir, ports):
 
 def test_default_aof_dir_if_none_specified(caplog, setdir, ports, server_port_num):
     nex = Nexus("test")
-    nex.createNexus(
+    nex.create_nexus(
         file="minimal_with_redis_saving.yaml",
         store_size=10000000,
         control_port=ports[0],
@@ -464,7 +402,7 @@ def test_default_aof_dir_if_none_specified(caplog, setdir, ports, server_port_nu
 
     time.sleep(3)
 
-    nex.destroyNexus()
+    nex.destroy_nexus()
 
     assert "appendonlydir" in os.listdir(".")
 
@@ -478,7 +416,7 @@ def test_default_aof_dir_if_none_specified(caplog, setdir, ports, server_port_nu
 
 def test_specify_static_aof_dir(caplog, setdir, ports, server_port_num):
     nex = Nexus("test")
-    nex.createNexus(
+    nex.create_nexus(
         file="minimal_with_custom_aof_dirname.yaml",
         store_size=10000000,
         control_port=ports[0],
@@ -490,7 +428,7 @@ def test_specify_static_aof_dir(caplog, setdir, ports, server_port_num):
 
     time.sleep(3)
 
-    nex.destroyNexus()
+    nex.destroy_nexus()
 
     assert "custom_aof_dirname" in os.listdir(".")
 
@@ -504,7 +442,7 @@ def test_specify_static_aof_dir(caplog, setdir, ports, server_port_num):
 
 def test_use_ephemeral_aof_dir(caplog, setdir, ports, server_port_num):
     nex = Nexus("test")
-    nex.createNexus(
+    nex.create_nexus(
         file="minimal_with_ephemeral_aof_dirname.yaml",
         store_size=10000000,
         control_port=ports[0],
@@ -516,7 +454,7 @@ def test_use_ephemeral_aof_dir(caplog, setdir, ports, server_port_num):
 
     time.sleep(3)
 
-    nex.destroyNexus()
+    nex.destroy_nexus()
 
     assert any(["improv_persistence_" in name for name in os.listdir(".")])
 
@@ -527,7 +465,7 @@ def test_use_ephemeral_aof_dir(caplog, setdir, ports, server_port_num):
 
 def test_save_no_schedule(caplog, setdir, ports, server_port_num):
     nex = Nexus("test")
-    nex.createNexus(
+    nex.create_nexus(
         file="minimal_with_no_schedule_saving.yaml",
         store_size=10000000,
         control_port=ports[0],
@@ -538,7 +476,7 @@ def test_save_no_schedule(caplog, setdir, ports, server_port_num):
 
     fsync_schedule = store.client.config_get("appendfsync")
 
-    nex.destroyNexus()
+    nex.destroy_nexus()
 
     assert "appendonlydir" in os.listdir(".")
     shutil.rmtree("appendonlydir")
@@ -548,7 +486,7 @@ def test_save_no_schedule(caplog, setdir, ports, server_port_num):
 
 def test_save_every_second(caplog, setdir, ports, server_port_num):
     nex = Nexus("test")
-    nex.createNexus(
+    nex.create_nexus(
         file="minimal_with_every_second_saving.yaml",
         store_size=10000000,
         control_port=ports[0],
@@ -559,7 +497,7 @@ def test_save_every_second(caplog, setdir, ports, server_port_num):
 
     fsync_schedule = store.client.config_get("appendfsync")
 
-    nex.destroyNexus()
+    nex.destroy_nexus()
 
     assert "appendonlydir" in os.listdir(".")
     shutil.rmtree("appendonlydir")
@@ -569,7 +507,7 @@ def test_save_every_second(caplog, setdir, ports, server_port_num):
 
 def test_save_every_write(caplog, setdir, ports, server_port_num):
     nex = Nexus("test")
-    nex.createNexus(
+    nex.create_nexus(
         file="minimal_with_every_write_saving.yaml",
         store_size=10000000,
         control_port=ports[0],
@@ -580,7 +518,7 @@ def test_save_every_write(caplog, setdir, ports, server_port_num):
 
     fsync_schedule = store.client.config_get("appendfsync")
 
-    nex.destroyNexus()
+    nex.destroy_nexus()
 
     assert "appendonlydir" in os.listdir(".")
     shutil.rmtree("appendonlydir")
@@ -591,11 +529,11 @@ def test_save_every_write(caplog, setdir, ports, server_port_num):
 @pytest.mark.skip(reason="Nexus no longer deletes files on shutdown. Nothing to test.")
 def test_store_already_deleted_issues_warning(caplog):
     nex = Nexus("test")
-    nex._startStoreInterface(10000)
+    nex._start_store_interface(10000)
     store_location = nex.store_loc
     StoreInterface(store_loc=nex.store_loc)
     os.remove(nex.store_loc)
-    nex.destroyNexus()
+    nex.destroy_nexus()
     assert any(
         "StoreInterface file {} is already deleted".format(store_location) in record.msg
         for record in caplog.records
@@ -608,12 +546,12 @@ def test_actor_sub(setdir, capsys, monkeypatch, ports):
     cfg_file = "sample_config.yaml"
     nex = Nexus("test")
 
-    nex.createNexus(
+    nex.create_nexus(
         file=cfg_file, store_size=4000, control_port=ports[0], output_port=ports[1]
     )
     print("Nexus Created")
 
-    nex.startNexus()
+    nex.start_nexus()
     print("Nexus Started")
     # time.sleep(5)
     # print("Printing...")
@@ -623,7 +561,7 @@ def test_actor_sub(setdir, capsys, monkeypatch, ports):
     # time.sleep(5)
     # subprocess.Popen(["quit"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    nex.destroyNexus()
+    nex.destroy_nexus()
     assert True
 
 
@@ -650,3 +588,64 @@ def test_sigint_exits_cleanly(ports, tmp_path):
 
     server.wait(10)
     assert True
+
+
+def test_nexus_actor_in_port(ports, setdir, start_nexus_minimal_zmq):
+    context = zmq.Context()
+    nex_socket = context.socket(zmq.REQ)
+    nex_socket.connect(f"tcp://localhost:{ports[3]}")  # actor in port
+
+    test_socket = context.socket(zmq.REP)
+    test_socket.bind("tcp://*:0")
+    in_port_string = test_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
+    test_socket_port = int(in_port_string.split(":")[-1])
+    logging.info(f"Using port {test_socket_port}")
+
+    logging.info("waiting to send")
+    actor_state = ActorStateMsg(
+        "test_actor", "test_status", test_socket_port, "test info string"
+    )
+    nex_socket.send_pyobj(actor_state)
+    logging.info("Sent")
+    out = nex_socket.recv_pyobj()
+    assert isinstance(out, ActorStateReplyMsg)
+    assert out.actor_name == actor_state.actor_name
+    assert out.status == "OK"
+
+
+@pytest.mark.skip(reason="Blocking comms so this won't work as-is")
+def test_nexus_actor_comm_setup(ports, setdir):
+    filename = "minimal_zmq.yaml"
+    nex = Nexus("test")
+    nex.create_nexus(
+        file=filename,
+        store_size=10000000,
+        control_port=ports[0],
+        output_port=ports[1],
+        actor_in_port=ports[3],
+    )
+
+    actor = nex.actors["Generator"]
+    actor.register_with_nexus()
+
+    nex.process_actor_message()
+
+
+@pytest.mark.skip(reason="Test isn't meant to be used for coverage")
+def test_debug_nex(ports, setdir):
+    filename = "minimal_zmq.yaml"
+    conftest.nex_startup(ports, filename)
+
+
+@pytest.mark.skip(reason="Test isn't meant to be used for coverage")
+def test_nex_cfg(ports, setdir):
+    filename = "minimal_zmq.yaml"
+    nex = Nexus("test")
+    nex.create_nexus(
+        file=filename,
+        store_size=100000000,
+        control_port=ports[0],
+        output_port=ports[1],
+        actor_in_port=ports[3],
+    )
+    nex.start_nexus()

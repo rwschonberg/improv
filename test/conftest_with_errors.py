@@ -65,7 +65,7 @@ class ActorDependentTestCase:
         ) as rm:
             print(rm)
 
-    async def createAsyncProcess(self, q_sig, q_comm):
+    async def create_async_process(self, q_sig, q_comm):
         print("Creating asyn process.")
         async with AsyncRunManager(
             "test", self.process_run, self.process_setup, q_sig, q_comm

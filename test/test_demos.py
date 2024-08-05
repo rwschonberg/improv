@@ -9,7 +9,6 @@ import concurrent.futures
 import logging
 
 from demos.sample_actors.zmqActor import ZmqActor
-from test_nexus import ports
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.DEBUG)
@@ -39,13 +38,12 @@ def ip():
     ("dir", "configfile", "logfile"),
     [
         ("minimal", "minimal.yaml", "testlog"),
-        ("minimal", "minimal_plasma.yaml", "testlog"),
     ],
 )
 async def test_simple_boot_and_quit(dir, configfile, logfile, setdir, ports):
     os.chdir(dir)
 
-    control_port, output_port, logging_port = ports
+    control_port, output_port, logging_port, actor_in_port = ports
 
     # start server
     server_opts = [
@@ -69,7 +67,7 @@ async def test_simple_boot_and_quit(dir, configfile, logfile, setdir, ports):
     await asyncio.sleep(SERVER_WARMUP)
 
     # initialize client
-    app = tui.TUI(control_port, output_port, logging_port)
+    app = tui.TUI(control_port, output_port, logging_port, actor_in_port)
 
     # run client
     async with app.run_test() as pilot:
@@ -95,7 +93,7 @@ async def test_simple_boot_and_quit(dir, configfile, logfile, setdir, ports):
 async def test_stop_output(dir, configfile, logfile, datafile, setdir, ports):
     os.chdir(dir)
 
-    control_port, output_port, logging_port = ports
+    control_port, output_port, logging_port, actor_in_port = ports
 
     # start server
     server_opts = [
@@ -117,7 +115,7 @@ async def test_stop_output(dir, configfile, logfile, datafile, setdir, ports):
     await asyncio.sleep(SERVER_WARMUP)
 
     # initialize client
-    app = tui.TUI(control_port, output_port, logging_port)
+    app = tui.TUI(control_port, output_port, logging_port, actor_in_port)
 
     # run client
     async with app.run_test() as pilot:

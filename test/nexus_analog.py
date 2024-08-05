@@ -40,7 +40,7 @@ def setup_store():
     return store
 
 
-async def pollQueues(links):
+async def poll_queues(links):
     tasks = []
     for link in links:
         tasks.append(asyncio.create_task(link.get_async()))
@@ -81,7 +81,7 @@ def start():
     ]
     loop = asyncio.get_event_loop()
     print("RUC loop")
-    res = loop.run_until_complete(pollQueues(links))
+    res = loop.run_until_complete(poll_queues(links))
     print(f"RES: {res}")
 
     print("**********************\nAll tasks at the end of execution:")

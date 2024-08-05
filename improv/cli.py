@@ -232,7 +232,7 @@ def run_server(args):
         sys.path.extend(args.actor_path)
 
     server = Nexus()
-    control_port, output_port = server.createNexus(
+    control_port, output_port = server.create_nexus(
         file=args.configfile,
         control_port=args.control_port,
         output_port=args.output_port,
@@ -243,7 +243,7 @@ def run_server(args):
         f"({control_port}, {output_port}, {logging_port}).\n"
         f"Press Ctrl-C to quit."
     )
-    server.startNexus()
+    server.start_nexus()
 
     if args.actor_path:
         for p in args.actor_path:

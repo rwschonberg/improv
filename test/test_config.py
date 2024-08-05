@@ -63,7 +63,7 @@ def test_init(test_input, set_configdir):
 #                                                             "\n".join(errors))
 
 
-def test_createConfig_settings(set_configdir):
+def test_create_config_settings(set_configdir):
     """Check if the default way config creates config.settings is correct.
 
     Asserts:
@@ -71,7 +71,7 @@ def test_createConfig_settings(set_configdir):
     """
 
     cfg = Config("good_config.yaml")
-    cfg.createConfig()
+    cfg.create_config()
     assert cfg.settings == {"use_watcher": False}
 
 
@@ -88,7 +88,7 @@ def test_createConfig_settings(set_configdir):
 #     assert res == -1
 
 
-def test_createConfig_wrong_import(set_configdir):
+def test_create_config_wrong_import(set_configdir):
     """Tests if createConfig can catch actors with errors during import.
 
     Asserts:
@@ -96,11 +96,11 @@ def test_createConfig_wrong_import(set_configdir):
     """
 
     cfg = Config("minimal_wrong_import.yaml")
-    res = cfg.createConfig()
+    res = cfg.create_config()
     assert res == -1
 
 
-def test_createConfig_clean(set_configdir):
+def test_create_config_clean(set_configdir):
     """Tests if createConfig runs without error given a good config.
 
     Asserts:
@@ -109,51 +109,51 @@ def test_createConfig_clean(set_configdir):
 
     cfg = Config("good_config.yaml")
     try:
-        cfg.createConfig()
+        cfg.create_config()
     except Exception as exc:
         pytest.fail(f"createConfig() raised an exception {exc}")
 
 
-def test_createConfig_noActor(set_configdir):
+def test_create_config_no_actor(set_configdir):
     """Tests if AttributeError is raised when there are no actors."""
 
     cfg = Config("no_actor.yaml")
     with pytest.raises(AttributeError):
-        cfg.createConfig()
+        cfg.create_config()
 
 
-def test_createConfig_ModuleNotFound(set_configdir):
+def test_create_config_module_not_found(set_configdir):
     """Tests if an error is raised when the package can"t be found."""
 
     cfg = Config("bad_package.yaml")
-    res = cfg.createConfig()
+    res = cfg.create_config()
     assert res == -1
 
 
-def test_createConfig_class_ImportError(set_configdir):
+def test_create_config_class_import_error(set_configdir):
     """Tests if an error is raised when the class name is invalid."""
 
     cfg = Config("bad_class.yaml")
-    res = cfg.createConfig()
+    res = cfg.create_config()
     assert res == -1
 
 
-def test_createConfig_AttributeError(set_configdir):
+def test_create_config_attribute_error(set_configdir):
     """Tests if AttributeError is raised."""
 
     cfg = Config("bad_class.yaml")
-    res = cfg.createConfig()
+    res = cfg.create_config()
     assert res == -1
 
 
-def test_createConfig_blank_file(set_configdir):
+def test_create_config_blank_file(set_configdir):
     """Tests if a blank config file raises an error."""
 
     with pytest.raises(TypeError):
         Config("blank_file.yaml")
 
 
-def test_createConfig_nonsense_file(set_configdir, caplog):
+def test_create_config_nonsense_file(set_configdir, caplog):
     """Tests if an improperly formatted config raises an error."""
 
     with pytest.raises(TypeError):
@@ -170,12 +170,12 @@ def test_cyclic_graph(set_configdir):
     assert not checks.check_if_connections_acyclic(path)
 
 
-def test_saveActors_clean(set_configdir):
+def test_save_actors_clean(set_configdir):
     """Compares internal actor representation to what was saved in the file."""
 
     cfg = Config("good_config.yaml")
-    cfg.createConfig()
-    cfg.saveActors()
+    cfg.create_config()
+    cfg.save_actors()
 
     with open("good_config_actors.yaml") as savedConfig:
         data = yaml.safe_load(savedConfig)
@@ -188,6 +188,6 @@ def test_saveActors_clean(set_configdir):
 
 def test_config_settings_read(set_configdir):
     cfg = Config("minimal_with_settings.yaml")
-    cfg.createConfig()
+    cfg.create_config()
 
     assert "store_size" in cfg.settings
