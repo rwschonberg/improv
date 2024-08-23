@@ -431,7 +431,7 @@ class RunManager:
                 signal_msg = self.q_sig.get(timeout=self.timeout)
                 signal = signal_msg.signal
                 self.q_sig.put(ActorSignalReplyMsg(an, signal, "OK", ""))
-                logger.debug("{} received Signal {}".format(self.actorName, signal))
+                logger.warning("{} received Signal {}".format(self.actorName, signal))
                 if signal == Signal.run():
                     self.run = True
                     logger.warning("Received run signal, begin running")

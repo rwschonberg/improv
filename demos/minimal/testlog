@@ -1,0 +1,677 @@
+improv.nexus ************ new improv server session 2024-08-22 00:17:48 ************
+improv.nexus Loading configuration file minimal.yaml:
+improv.nexus actors:
+  Generator:
+    package: actors.sample_generator_zmq
+    class: Generator
+
+  Processor:
+    package: actors.sample_processor_zmq
+    class: Processor
+
+connections:
+  Generator-Processor:
+    sources:
+      - Generator.q_out
+    sinks:
+      - Processor.q_in
+
+asyncio Using selector: KqueueSelector
+improv.nexus Redis saving disabled.
+improv.nexus Setting up Redis store.
+improv.nexus Redis port not specified. Searching for open port.
+improv.nexus Attempting to connect to Redis on port 6379
+improv.nexus Starting Redis server with command: 
+ ['redis-server', '--port', '6379', '--maxmemory', '10000000', '--save', '""']
+improv.nexus StoreInterface start successful on port 6379
+improv.nexus Redis server started
+improv.nexus Create new store object
+improv.store Successfully connected to redis datastore on port 6379 
+improv.nexus Redis server connected on port 6379
+improv.nexus Created link name -5137805670426869971 for link ('inputs:', 'Generator.q_out', 'outputs:', 'Processor.q_in')
+improv.actor Generator outgoing [<improv.actor.LinkInfo object at 0x10b14a160>]
+improv.actor Generator incoming []
+improv.store Successfully connected to redis datastore on port 6379 
+improv.nexus Setting up actor Generator
+improv.actor Processor outgoing []
+improv.actor Processor incoming [<improv.actor.LinkInfo object at 0x10b15e580>]
+improv.store Successfully connected to redis datastore on port 6379 
+improv.nexus Setting up actor Processor
+2024-08-22 00:17:52 Server running on (control, output, log) ports (5555, 5556, 5557).
+Press Ctrl-C to quit.
+improv.nexus Starting processes
+improv.nexus <ForkProcess name='Generator' parent=21332 initial daemon>
+improv.nexus <ForkProcess name='Processor' parent=21332 initial daemon>
+improv.nexus All processes started
+improv.actor Actor Generator registering with nexus
+improv.nexus Visual is not started: 'Visual'
+improv.actor Actor Processor registering with nexus
+improv.nexus Received state message from new actor Generator with info: comms opened and actor ready to initialize
+
+improv.nexus Updated actor state:
+Name: Generator
+Status: waiting
+Nexus control port: 60449
+
+improv.actor Got response from nexus:
+Status: OK
+Info: actor state updated successfully
+
+improv.actor Actor Generator registered with Nexus
+improv.actor Actor Generator registering with broker
+improv.nexus Received state message from new actor Processor with info: comms opened and actor ready to initialize
+
+improv.nexus Updated actor state:
+Name: Processor
+Status: waiting
+Nexus control port: 60451
+
+improv.actor Actor Generator registered with broker
+improv.actor Actor Generator setting up links
+improv.actor Actor Generator finished setting up links
+improv.nexus All actors connected to Nexus. Allowing setup.
+improv.actor Got response from nexus:
+Status: OK
+Info: actor state updated successfully
+
+improv.actor Actor Processor registered with Nexus
+improv.actor Actor Processor registering with broker
+improv.actor Actor Processor registered with broker
+improv.actor Actor Processor setting up links
+improv.actor Actor Processor finished setting up links
+improv.nexus Received signal from user: setup
+improv.nexus Running setup
+improv.nexus Starting setup: Generator
+improv.nexus Starting setup: Processor
+actors.sample_generator_zmq Completed setup for Generator
+improv.nexus Received state message from actor Generator with info: 
+Current state:
+Name: Generator
+Status: waiting
+Nexus control port: 60449
+
+improv.nexus Updated actor state:
+Name: Generator
+Status: ready
+Nexus control port: 60449
+
+actors.sample_processor_zmq Completed setup for Processor
+improv.actor Actor Generator got state update reply:
+Status: OK
+Info: actor state updated successfully
+
+improv.nexus Received state message from actor Processor with info: 
+Current state:
+Name: Processor
+Status: waiting
+Nexus control port: 60451
+
+improv.nexus Updated actor state:
+Name: Processor
+Status: ready
+Nexus control port: 60451
+
+improv.nexus t.result = None
+improv.actor Actor Processor got state update reply:
+Status: OK
+Info: actor state updated successfully
+
+improv.nexus Received signal from user: run
+improv.nexus Begin run!
+improv.actor Received run signal, begin running
+improv.actor Received run signal, begin running
+improv.nexus t.result = None
+improv.nexus Received signal from user: stop
+improv.nexus Nexus received stop signal
+improv.nexus Starting stop procedure
+improv.nexus t.result = None
+improv.nexus Received signal from user: quit
+improv.nexus Quitting the program!
+improv.nexus Killing child processes
+improv.nexus Actors terminated
+improv.nexus Destroying Nexus
+improv.nexus StoreInterface close successful: 6379
+improv.nexus Broker shutdown successful
+improv.nexus Logger shutdown successful
+asyncio Exception in callback _AsyncSocket._deserialize.<locals>._chain(<Future cancelled>) at /Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/site-packages/zmq/_future.py:347
+handle: <Handle _AsyncSocket._deserialize.<locals>._chain(<Future cancelled>) at /Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/site-packages/zmq/_future.py:347>
+Traceback (most recent call last):
+  File "/Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/asyncio/events.py", line 80, in _run
+    self._context.run(self._callback, *self._args)
+  File "/Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/site-packages/zmq/_future.py", line 351, in _chain
+    if recvd.exception():
+asyncio.exceptions.CancelledError
+improv.nexus t.result = None
+improv.nexus Received shutdown order
+improv.nexus Stop signal: quit
+improv.nexus Unable to send shutdown message to actor Generator: Socket operation on non-socket
+improv.nexus Unable to send shutdown message to actor Processor: Socket operation on non-socket
+improv.nexus Canceling outstanding tasks
+improv.nexus Polling has stopped.
+improv.nexus Shutting down polling
+improv.nexus Result of run_until_complete: Shutting Down
+improv.nexus Current loop: <_UnixSelectorEventLoop running=False closed=False debug=False>
+improv.nexus Shutdown loop
+improv.nexus ************ new improv server session 2024-08-22 00:26:51 ************
+improv.nexus Loading configuration file minimal.yaml:
+improv.nexus actors:
+  Generator:
+    package: actors.sample_generator_zmq
+    class: Generator
+
+  Processor:
+    package: actors.sample_processor_zmq
+    class: Processor
+
+connections:
+  Generator-Processor:
+    sources:
+      - Generator.q_out
+    sinks:
+      - Processor.q_in
+
+asyncio Using selector: KqueueSelector
+improv.nexus Redis saving disabled.
+improv.nexus Setting up Redis store.
+improv.nexus Redis port not specified. Searching for open port.
+improv.nexus Attempting to connect to Redis on port 6379
+improv.nexus Starting Redis server with command: 
+ ['redis-server', '--port', '6379', '--maxmemory', '10000000', '--save', '""']
+improv.nexus StoreInterface start successful on port 6379
+improv.nexus Redis server started
+improv.nexus Create new store object
+improv.store Successfully connected to redis datastore on port 6379 
+improv.nexus Redis server connected on port 6379
+improv.nexus Created link name -2242573845927746480 for link ('inputs:', 'Generator.q_out', 'outputs:', 'Processor.q_in')
+improv.actor Generator outgoing [<improv.actor.LinkInfo object at 0x115d8b160>]
+improv.actor Generator incoming []
+improv.store Successfully connected to redis datastore on port 6379 
+improv.nexus Setting up actor Generator
+improv.actor Processor outgoing []
+improv.actor Processor incoming [<improv.actor.LinkInfo object at 0x115d9f580>]
+improv.store Successfully connected to redis datastore on port 6379 
+improv.nexus Setting up actor Processor
+2024-08-22 00:26:54 Server running on (control, output, log) ports (5555, 5556, 5557).
+Press Ctrl-C to quit.
+improv.nexus Starting processes
+improv.nexus <ForkProcess name='Generator' parent=21671 initial daemon>
+improv.nexus <ForkProcess name='Processor' parent=21671 initial daemon>
+improv.nexus All processes started
+improv.nexus Visual is not started: 'Visual'
+improv.actor Actor Generator registering with nexus
+improv.actor Actor Processor registering with nexus
+improv.nexus Received state message from new actor Generator with info: comms opened and actor ready to initialize
+
+improv.nexus Updated actor state:
+Name: Generator
+Status: waiting
+Nexus control port: 60187
+
+improv.actor Got response from nexus:
+Status: OK
+Info: actor state updated successfully
+
+improv.actor Actor Generator registered with Nexus
+improv.actor Actor Generator registering with broker
+improv.actor Actor Generator registered with broker
+improv.actor Actor Generator setting up links
+improv.actor Actor Generator finished setting up links
+improv.nexus Received state message from new actor Processor with info: comms opened and actor ready to initialize
+
+improv.nexus Updated actor state:
+Name: Processor
+Status: waiting
+Nexus control port: 60189
+
+improv.nexus All actors connected to Nexus. Allowing setup.
+improv.actor Got response from nexus:
+Status: OK
+Info: actor state updated successfully
+
+improv.actor Actor Processor registered with Nexus
+improv.actor Actor Processor registering with broker
+improv.actor Actor Processor registered with broker
+improv.actor Actor Processor setting up links
+improv.actor Actor Processor finished setting up links
+improv.nexus Received signal from user: setup
+improv.nexus Running setup
+improv.nexus Starting setup: Generator
+improv.nexus Starting setup: Processor
+actors.sample_generator_zmq Completed setup for Generator
+actors.sample_processor_zmq Completed setup for Processor
+improv.nexus Received state message from actor Generator with info: 
+Current state:
+Name: Generator
+Status: waiting
+Nexus control port: 60187
+
+improv.nexus Updated actor state:
+Name: Generator
+Status: ready
+Nexus control port: 60187
+
+improv.actor Actor Generator got state update reply:
+Status: OK
+Info: actor state updated successfully
+
+improv.nexus t.result = None
+improv.nexus Received state message from actor Processor with info: 
+Current state:
+Name: Processor
+Status: waiting
+Nexus control port: 60189
+
+improv.nexus Updated actor state:
+Name: Processor
+Status: ready
+Nexus control port: 60189
+
+improv.actor Actor Processor got state update reply:
+Status: OK
+Info: actor state updated successfully
+
+improv.nexus Received signal from user: run
+improv.nexus Begin run!
+improv.actor Received run signal, begin running
+improv.actor Received run signal, begin running
+improv.nexus t.result = None
+improv.nexus Received signal from user: stop
+improv.nexus Nexus received stop signal
+improv.nexus Starting stop procedure
+improv.nexus t.result = None
+improv.nexus Received signal from user: quit
+improv.nexus Quitting the program!
+improv.nexus Received shutdown order
+improv.nexus Stop signal: quit
+improv.actor Received quit signal, aborting
+improv.actor Ran for 10.546844959259033 seconds
+improv.actor Exiting RunManager
+improv.actor Received quit signal, aborting
+improv.actor Ran for 10.546464920043945 seconds
+improv.actor Exiting RunManager
+improv.nexus Canceling outstanding tasks
+improv.nexus Polling has stopped.
+improv.nexus Killing child processes
+improv.nexus Actors terminated
+improv.nexus Destroying Nexus
+improv.nexus StoreInterface close successful: 6379
+improv.nexus Broker shutdown successful
+improv.nexus Logger shutdown successful
+improv.nexus Loop is cancelled
+improv.nexus Result of run_until_complete: 
+improv.nexus Current loop: <_UnixSelectorEventLoop running=False closed=False debug=False>
+improv.nexus Shutdown loop
+asyncio Task exception was never retrieved
+future: <Task finished name='Task-13' coro=<Nexus.process_actor_message() done, defined at /Users/richardschonberg/code/duke/improv/improv/nexus.py:592> exception=ZMQError('Socket operation on non-socket')>
+Traceback (most recent call last):
+  File "/Users/richardschonberg/code/duke/improv/improv/nexus.py", line 593, in process_actor_message
+    msg = await self.actor_in_socket.recv_pyobj()
+  File "/Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/site-packages/zmq/sugar/socket.py", line 975, in recv_pyobj
+    msg = self.recv(flags)
+  File "/Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/site-packages/zmq/_future.py", line 309, in recv
+    return self._add_recv_event('recv', dict(flags=flags, copy=copy, track=track))
+  File "/Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/site-packages/zmq/_future.py", line 487, in _add_recv_event
+    timeout_ms = self._shadow_sock.rcvtimeo
+  File "/Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/site-packages/zmq/sugar/attrsettr.py", line 55, in __getattr__
+    return self._get_attr_opt(upper_key, opt)
+  File "/Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/site-packages/zmq/sugar/attrsettr.py", line 67, in _get_attr_opt
+    return self.get(opt)
+  File "zmq/backend/cython/socket.pyx", line 512, in zmq.backend.cython.socket.Socket.get
+  File "zmq/backend/cython/socket.pyx", line 270, in zmq.backend.cython.socket._getsockopt
+  File "zmq/backend/cython/checkrc.pxd", line 28, in zmq.backend.cython.checkrc._check_rc
+zmq.error.ZMQError: Socket operation on non-socket
+improv.nexus ************ new improv server session 2024-08-22 00:32:16 ************
+improv.nexus Loading configuration file minimal.yaml:
+improv.nexus actors:
+  Generator:
+    package: actors.sample_generator_zmq
+    class: Generator
+
+  Processor:
+    package: actors.sample_processor_zmq
+    class: Processor
+
+connections:
+  Generator-Processor:
+    sources:
+      - Generator.q_out
+    sinks:
+      - Processor.q_in
+
+asyncio Using selector: KqueueSelector
+improv.nexus Redis saving disabled.
+improv.nexus Setting up Redis store.
+improv.nexus Redis port not specified. Searching for open port.
+improv.nexus Attempting to connect to Redis on port 6379
+improv.nexus Starting Redis server with command: 
+ ['redis-server', '--port', '6379', '--maxmemory', '10000000', '--save', '""']
+improv.nexus StoreInterface start successful on port 6379
+improv.nexus Redis server started
+improv.nexus Create new store object
+improv.store Successfully connected to redis datastore on port 6379 
+improv.nexus Redis server connected on port 6379
+improv.nexus Created link name 3153821865200238005 for link ('inputs:', 'Generator.q_out', 'outputs:', 'Processor.q_in')
+improv.actor Generator outgoing [<improv.actor.LinkInfo object at 0x10dfcb130>]
+improv.actor Generator incoming []
+improv.store Successfully connected to redis datastore on port 6379 
+improv.nexus Setting up actor Generator
+improv.actor Processor outgoing []
+improv.actor Processor incoming [<improv.actor.LinkInfo object at 0x10dfdf550>]
+improv.store Successfully connected to redis datastore on port 6379 
+improv.nexus Setting up actor Processor
+2024-08-22 00:32:20 Server running on (control, output, log) ports (5555, 5556, 5557).
+Press Ctrl-C to quit.
+improv.nexus Starting processes
+improv.nexus <ForkProcess name='Generator' parent=21994 initial daemon>
+improv.nexus <ForkProcess name='Processor' parent=21994 initial daemon>
+improv.nexus All processes started
+improv.nexus Visual is not started: 'Visual'
+improv.actor Actor Generator registering with nexus
+improv.actor Actor Processor registering with nexus
+improv.nexus Received state message from new actor Generator with info: comms opened and actor ready to initialize
+
+improv.nexus Updated actor state:
+Name: Generator
+Status: waiting
+Nexus control port: 63213
+
+improv.actor Got response from nexus:
+Status: OK
+Info: actor state updated successfully
+
+improv.actor Actor Generator registered with Nexus
+improv.actor Actor Generator registering with broker
+improv.actor Actor Generator registered with broker
+improv.actor Actor Generator setting up links
+improv.nexus Received state message from new actor Processor with info: comms opened and actor ready to initialize
+
+improv.actor Actor Generator finished setting up links
+improv.nexus Updated actor state:
+Name: Processor
+Status: waiting
+Nexus control port: 63215
+
+improv.nexus All actors connected to Nexus. Allowing setup.
+improv.actor Got response from nexus:
+Status: OK
+Info: actor state updated successfully
+
+improv.actor Actor Processor registered with Nexus
+improv.actor Actor Processor registering with broker
+improv.actor Actor Processor registered with broker
+improv.actor Actor Processor setting up links
+improv.actor Actor Processor finished setting up links
+improv.nexus Received signal from user: setup
+improv.nexus Running setup
+improv.nexus Starting setup: Generator
+improv.actor Generator received Signal setup
+improv.nexus Starting setup: Processor
+actors.sample_generator_zmq Completed setup for Generator
+improv.nexus Received state message from actor Generator with info: 
+Current state:
+Name: Generator
+Status: waiting
+Nexus control port: 63213
+
+improv.nexus Updated actor state:
+Name: Generator
+Status: ready
+Nexus control port: 63213
+
+improv.actor Processor received Signal setup
+actors.sample_processor_zmq Completed setup for Processor
+improv.actor Actor Generator got state update reply:
+Status: OK
+Info: actor state updated successfully
+
+improv.nexus Received state message from actor Processor with info: 
+Current state:
+Name: Processor
+Status: waiting
+Nexus control port: 63215
+
+improv.nexus Updated actor state:
+Name: Processor
+Status: ready
+Nexus control port: 63215
+
+improv.nexus t.result = None
+improv.actor Actor Processor got state update reply:
+Status: OK
+Info: actor state updated successfully
+
+improv.nexus Received signal from user: run
+improv.nexus Begin run!
+improv.actor Generator received Signal run
+improv.actor Received run signal, begin running
+improv.actor Processor received Signal run
+improv.actor Received run signal, begin running
+improv.nexus t.result = None
+improv.nexus Received signal from user: stop
+improv.nexus Nexus received stop signal
+improv.nexus Starting stop procedure
+improv.nexus t.result = None
+improv.nexus Received signal from user: quit
+improv.nexus Quitting the program!
+improv.nexus Received shutdown order
+improv.nexus Stop signal: quit
+improv.actor Generator received Signal quit
+improv.actor Received quit signal, aborting
+improv.actor Ran for 10.592428922653198 seconds
+improv.actor Exiting RunManager
+improv.actor Processor received Signal quit
+improv.actor Received quit signal, aborting
+improv.actor Ran for 10.592233180999756 seconds
+improv.actor Exiting RunManager
+improv.nexus Canceling outstanding tasks
+improv.nexus Polling has stopped.
+improv.nexus Killing child processes
+improv.nexus Actors terminated
+improv.nexus Destroying Nexus
+improv.nexus StoreInterface close successful: 6379
+improv.nexus Broker shutdown successful
+improv.nexus Logger shutdown successful
+improv.nexus Loop is cancelled
+improv.nexus Result of run_until_complete: 
+improv.nexus Current loop: <_UnixSelectorEventLoop running=False closed=False debug=False>
+improv.nexus Shutdown loop
+asyncio Task exception was never retrieved
+future: <Task finished name='Task-13' coro=<Nexus.process_actor_message() done, defined at /Users/richardschonberg/code/duke/improv/improv/nexus.py:592> exception=ZMQError('Socket operation on non-socket')>
+Traceback (most recent call last):
+  File "/Users/richardschonberg/code/duke/improv/improv/nexus.py", line 593, in process_actor_message
+    msg = await self.actor_in_socket.recv_pyobj()
+  File "/Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/site-packages/zmq/sugar/socket.py", line 975, in recv_pyobj
+    msg = self.recv(flags)
+  File "/Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/site-packages/zmq/_future.py", line 309, in recv
+    return self._add_recv_event('recv', dict(flags=flags, copy=copy, track=track))
+  File "/Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/site-packages/zmq/_future.py", line 487, in _add_recv_event
+    timeout_ms = self._shadow_sock.rcvtimeo
+  File "/Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/site-packages/zmq/sugar/attrsettr.py", line 55, in __getattr__
+    return self._get_attr_opt(upper_key, opt)
+  File "/Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/site-packages/zmq/sugar/attrsettr.py", line 67, in _get_attr_opt
+    return self.get(opt)
+  File "zmq/backend/cython/socket.pyx", line 512, in zmq.backend.cython.socket.Socket.get
+  File "zmq/backend/cython/socket.pyx", line 270, in zmq.backend.cython.socket._getsockopt
+  File "zmq/backend/cython/checkrc.pxd", line 28, in zmq.backend.cython.checkrc._check_rc
+zmq.error.ZMQError: Socket operation on non-socket
+improv.nexus ************ new improv server session 2024-08-22 17:59:41 ************
+improv.nexus Loading configuration file minimal.yaml:
+improv.nexus actors:
+  Generator:
+    package: actors.sample_generator_zmq
+    class: Generator
+
+  Processor:
+    package: actors.sample_processor_zmq
+    class: Processor
+
+connections:
+  Generator-Processor:
+    sources:
+      - Generator.q_out
+    sinks:
+      - Processor.q_in
+
+asyncio Using selector: KqueueSelector
+improv.nexus Redis saving disabled.
+improv.nexus Setting up Redis store.
+improv.nexus Redis port not specified. Searching for open port.
+improv.nexus Attempting to connect to Redis on port 6379
+improv.nexus Starting Redis server with command: 
+ ['redis-server', '--port', '6379', '--maxmemory', '10000000', '--save', '""']
+improv.nexus StoreInterface start successful on port 6379
+improv.nexus Redis server started
+improv.nexus Create new store object
+improv.store Successfully connected to redis datastore on port 6379 
+improv.nexus Redis server connected on port 6379
+improv.nexus Created link name 6929082616010507246 for link ('inputs:', 'Generator.q_out', 'outputs:', 'Processor.q_in')
+improv.actor Generator outgoing [<improv.actor.LinkInfo object at 0x11a44a160>]
+improv.actor Generator incoming []
+improv.store Successfully connected to redis datastore on port 6379 
+improv.nexus Setting up actor Generator
+improv.actor Processor outgoing []
+improv.actor Processor incoming [<improv.actor.LinkInfo object at 0x11a45e580>]
+improv.store Successfully connected to redis datastore on port 6379 
+improv.nexus Setting up actor Processor
+2024-08-22 17:59:45 Server running on (control, output, log) ports (5555, 5556, 5557).
+Press Ctrl-C to quit.
+improv.nexus Starting processes
+improv.nexus <ForkProcess name='Generator' parent=22448 initial daemon>
+improv.nexus <ForkProcess name='Processor' parent=22448 initial daemon>
+improv.nexus All processes started
+improv.nexus Visual is not started: 'Visual'
+improv.actor Actor Generator registering with nexus
+improv.actor Actor Processor registering with nexus
+improv.nexus Received state message from new actor Generator with info: comms opened and actor ready to initialize
+
+improv.nexus Updated actor state:
+Name: Generator
+Status: waiting
+Nexus control port: 63814
+
+improv.actor Got response from nexus:
+Status: OK
+Info: actor state updated successfully
+
+improv.actor Actor Generator registered with Nexus
+improv.actor Actor Generator registering with broker
+improv.actor Actor Generator registered with broker
+improv.actor Actor Generator setting up links
+improv.nexus Received state message from new actor Processor with info: comms opened and actor ready to initialize
+
+improv.actor Actor Generator finished setting up links
+improv.nexus Updated actor state:
+Name: Processor
+Status: waiting
+Nexus control port: 63816
+
+improv.nexus All actors connected to Nexus. Allowing setup.
+improv.actor Got response from nexus:
+Status: OK
+Info: actor state updated successfully
+
+improv.actor Actor Processor registered with Nexus
+improv.actor Actor Processor registering with broker
+improv.actor Actor Processor registered with broker
+improv.actor Actor Processor setting up links
+improv.actor Actor Processor finished setting up links
+improv.nexus Received signal from user: setup
+improv.nexus Running setup
+improv.nexus Starting setup: Generator
+improv.actor Generator received Signal setup
+improv.nexus Starting setup: Processor
+actors.sample_generator_zmq Completed setup for Generator
+improv.nexus Received state message from actor Generator with info: 
+Current state:
+Name: Generator
+Status: waiting
+Nexus control port: 63814
+
+improv.actor Processor received Signal setup
+improv.nexus Updated actor state:
+Name: Generator
+Status: ready
+Nexus control port: 63814
+
+actors.sample_processor_zmq Completed setup for Processor
+improv.actor Actor Generator got state update reply:
+Status: OK
+Info: actor state updated successfully
+
+improv.nexus Received state message from actor Processor with info: 
+Current state:
+Name: Processor
+Status: waiting
+Nexus control port: 63816
+
+improv.nexus Updated actor state:
+Name: Processor
+Status: ready
+Nexus control port: 63816
+
+improv.nexus t.result = None
+improv.actor Actor Processor got state update reply:
+Status: OK
+Info: actor state updated successfully
+
+improv.nexus Received signal from user: run
+improv.nexus Begin run!
+improv.actor Generator received Signal run
+improv.actor Received run signal, begin running
+improv.actor Processor received Signal run
+improv.actor Received run signal, begin running
+improv.nexus t.result = None
+improv.nexus Received signal from user: stop
+improv.nexus Nexus received stop signal
+improv.nexus Starting stop procedure
+improv.actor Generator received Signal stop
+improv.actor actor Generator received stop signal
+Generator stopping
+improv.actor Processor received Signal stop
+improv.actor actor Processor received stop signal
+actors.sample_processor_zmq Processor stopping
+improv.nexus t.result = None
+improv.nexus Received signal from user: quit
+improv.nexus Quitting the program!
+improv.nexus Shutting down via signal handler due to quit.                 Steps may be out of order or dirty.
+improv.nexus Received shutdown order
+improv.nexus Stop signal: quit
+improv.actor Generator received Signal quit
+improv.actor Received quit signal, aborting
+improv.actor Ran for 10.661081075668335 seconds
+improv.actor Exiting RunManager
+improv.actor Processor received Signal quit
+improv.actor Received quit signal, aborting
+improv.actor Ran for 10.660901308059692 seconds
+improv.actor Exiting RunManager
+improv.nexus Canceling outstanding tasks
+improv.nexus Polling has stopped.
+improv.nexus Killing child processes
+improv.nexus Actors terminated
+improv.nexus Destroying Nexus
+improv.nexus StoreInterface close successful: 6379
+improv.nexus Broker shutdown successful
+improv.nexus Logger shutdown successful
+improv.nexus Loop is cancelled
+improv.nexus Result of run_until_complete: 
+improv.nexus Current loop: <_UnixSelectorEventLoop running=False closed=False debug=False>
+improv.nexus Shutdown loop
+asyncio Task exception was never retrieved
+future: <Task finished name='Task-13' coro=<Nexus.process_actor_message() done, defined at /Users/richardschonberg/code/duke/improv/improv/nexus.py:592> exception=ZMQError('Socket operation on non-socket')>
+Traceback (most recent call last):
+  File "/Users/richardschonberg/code/duke/improv/improv/nexus.py", line 593, in process_actor_message
+    msg = await self.actor_in_socket.recv_pyobj()
+  File "/Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/site-packages/zmq/sugar/socket.py", line 975, in recv_pyobj
+    msg = self.recv(flags)
+  File "/Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/site-packages/zmq/_future.py", line 309, in recv
+    return self._add_recv_event('recv', dict(flags=flags, copy=copy, track=track))
+  File "/Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/site-packages/zmq/_future.py", line 487, in _add_recv_event
+    timeout_ms = self._shadow_sock.rcvtimeo
+  File "/Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/site-packages/zmq/sugar/attrsettr.py", line 55, in __getattr__
+    return self._get_attr_opt(upper_key, opt)
+  File "/Users/richardschonberg/.pyenv/versions/3.9.18/lib/python3.9/site-packages/zmq/sugar/attrsettr.py", line 67, in _get_attr_opt
+    return self.get(opt)
+  File "zmq/backend/cython/socket.pyx", line 512, in zmq.backend.cython.socket.Socket.get
+  File "zmq/backend/cython/socket.pyx", line 270, in zmq.backend.cython.socket._getsockopt
+  File "zmq/backend/cython/checkrc.pxd", line 28, in zmq.backend.cython.checkrc._check_rc
+zmq.error.ZMQError: Socket operation on non-socket

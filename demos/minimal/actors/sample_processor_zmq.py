@@ -39,16 +39,6 @@ class Processor(ZmqActor):
         logger.info("Processor stopping")
         return 0
 
-    # def run(self):
-    #     """ Send array into the store.
-    #     """
-    #     self.fcns = {}
-    #     self.fcns['setup'] = self.setup
-    #     self.fcns['run'] = self.runStep
-    #     self.fcns['stop'] = self.stop
-
-    #     with RunManager(self.name, self.fcns, self.links) as rm:
-    #         logger.info(rm)
 
     def run_step(self):
         """Gets from the input queue and calculates the average.
@@ -62,15 +52,13 @@ class Processor(ZmqActor):
         try:
             frame = self.q_in.get(timeout=0.05)
         except Exception as e:
-            logger.error(f"{self.name} could not get frame! At {self.frame_num}: {e}")
+            # logger.error(f"{self.name} could not get frame! At {self.frame_num}: {e}")
             pass
 
         if frame is not None and self.frame_num is not None:
             self.done = False
             self.frame = self.client.get(frame)
             avg = np.mean(self.frame[0])
-            if self.name != "Processor2":
-                logger.info(f"{self.name} got frame {frame} with value {self.frame}")
             # logger.info(f"Average: {avg}")
             self.avg_list.append(avg)
             # logger.info(f"Overall Average: {np.mean(self.avg_list)}")

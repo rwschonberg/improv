@@ -427,7 +427,6 @@ class Nexus:
         loop.stop()
         loop.close()
         logger.info("Shutdown loop")
-        self.zmq_context.destroy(linger=0)
 
     def start(self):
         """
@@ -457,9 +456,6 @@ class Nexus:
             self.actor_in_socket.close(linger=0)
         if self.broker_in_socket:
             self.broker_in_socket.close(linger=0)
-        for actor in self.actor_states.values():
-            if actor and actor.sig_socket:
-                actor.sig_socket.close(linger=0)
         if self.logger_in_socket:
             self.logger_in_socket.close(linger=0)
         if hasattr(self, "zmq_context"):
@@ -501,7 +497,7 @@ class Nexus:
         loop = asyncio.get_event_loop()
         signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
         for s in signals:
-            loop.add_signal_handler(s, lambda s=s: self.stop_polling_and_quit(s, []))
+            loop.add_signal_handler(s, lambda s=s: self.stop_polling_and_quit(s))
 
         while not self.flags["quit"]:
             try:
@@ -523,12 +519,9 @@ class Nexus:
                     logger.debug("t.result = " + str(t.result()))
                     self.tasks[i] = asyncio.create_task(self.remote_input())
 
-        if not self.early_exit:  # don't run this again if we already have
-            self.stop_polling(Signal.quit(), [])
-            logger.warning("Shutting down polling")
         return "Shutting Down"
 
-    def stop_polling_and_quit(self, signal, queues):
+    async def stop_polling_and_quit(self, signal):
         """
         quit the process and stop polling signals from queues
 
@@ -543,7 +536,7 @@ class Nexus:
                 signal
             )
         )
-        self.stop_polling(signal, queues)
+        await self.stop_polling(signal)
         self.flags["quit"] = True
         self.early_exit = True
         self.quit()
@@ -653,8 +646,7 @@ class Nexus:
                 self.actorStates[name] = flag[0]
             elif flag[0] == Signal.quit():
                 logger.warning("Quitting the program!")
-                self.flags["quit"] = True
-                self.quit()
+                await self.stop_polling_and_quit(Signal.quit())
             elif flag[0] == Signal.load():
                 logger.info("Loading Config config from file " + flag[1])
                 self.load_config(flag[1])
@@ -704,7 +696,7 @@ class Nexus:
                 self.processes = [p for p in list(self.processes) if p.exitcode is None]
             elif flag[0] == Signal.stop():
                 logger.info("Nexus received stop signal")
-                self.stop()
+                await self.stop()
         elif flag:
             logger.error("Unknown signal received from Nexus: {}".format(flag))
 
@@ -760,21 +752,30 @@ class Nexus:
 
         self.destroy_nexus()
 
-    def stop(self):
+    async def stop(self):
         logger.warning("Starting stop procedure")
         self.allowStart = False
 
-        for q in self.sig_queues.values():
+        for actor in self.actor_states.values():
             try:
-                q.put_nowait(Signal.stop())
-            except Full:
-                logger.warning("Signal queue" + q.name + "is full")
+                await actor.sig_socket.send_pyobj(
+                    ActorSignalMsg(
+                        actor.actor_name, Signal.stop(), "Nexus sending stop signal"
+                    )
+                )
+                await actor.sig_socket.recv_pyobj()
+            except Exception as e:
+                logger.info(
+                    f"Unable to send stop message "
+                    f"to actor {actor.actor_name}: "
+                    f"{e}"
+                )
         self.allowStart = True
 
     def revive(self):
         logger.warning("Starting revive")
 
-    def stop_polling(self, stop_signal, queues):
+    async def stop_polling(self, stop_signal):
         """Cancels outstanding tasks and fills their last request.
 
         Puts a string into all active queues, then cancels their
@@ -789,11 +790,20 @@ class Nexus:
 
         logger.info(f"Stop signal: {stop_signal}")
         shutdown_message = Signal.quit()
-        for q in queues:
+        for actor in self.actor_states.values():
             try:
-                q.put(shutdown_message)
-            except Exception:
-                logger.info("Unable to send shutdown message to {}.".format(q.name))
+                await actor.sig_socket.send_pyobj(
+                    ActorSignalMsg(
+                        actor.actor_name, shutdown_message, "Nexus sending quit signal"
+                    )
+                )
+                await actor.sig_socket.recv_pyobj()
+            except Exception as e:
+                logger.info(
+                    f"Unable to send shutdown message "
+                    f"to actor {actor.actor_name}: "
+                    f"{e}"
+                )
 
         logger.info("Canceling outstanding tasks")
 
