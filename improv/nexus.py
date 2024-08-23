@@ -229,7 +229,7 @@ class Nexus:
         self.allowStart = False
         self.stopped = False
 
-        return (cfg["control_port"], cfg["output_port"])
+        return (cfg["control_port"], cfg["output_port"], self.logger_pub_port)
 
     def load_config(self, file):
         """Load configuration file.
@@ -528,7 +528,6 @@ class Nexus:
                             self.process_actor_message()
                         )
                 elif t in done:
-                    logger.debug("t.result = " + str(t.result()))
                     self.tasks[i] = asyncio.create_task(self.remote_input())
 
         return "Shutting Down"
@@ -659,6 +658,7 @@ class Nexus:
             elif flag[0] == Signal.quit():
                 logger.warning("Quitting the program!")
                 await self.stop_polling_and_quit(Signal.quit())
+                self.flags["quit"] = True
             elif flag[0] == Signal.load():
                 logger.info("Loading Config config from file " + flag[1])
                 self.load_config(flag[1])

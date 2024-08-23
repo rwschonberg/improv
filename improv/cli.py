@@ -212,18 +212,11 @@ def run_server(args):
     """
     Runs the improv server in headless mode.
     """
-    zmq_log_handler = PUBHandler("tcp://*:%s" % args.logging_port)
 
-    # in case we bound to a random port (default), get port number
-    logging_port = int(
-        zmq_log_handler.socket.getsockopt_string(SocketOption.LAST_ENDPOINT).split(":")[
-            -1
-        ]
-    )
     logging.basicConfig(
         level=logging.DEBUG,
         format="%(name)s %(message)s",
-        handlers=[logging.FileHandler(args.logfile), zmq_log_handler],
+        handlers=[logging.FileHandler(args.logfile)],
     )
 
     if not args.actor_path:
@@ -232,7 +225,7 @@ def run_server(args):
         sys.path.extend(args.actor_path)
 
     server = Nexus()
-    control_port, output_port = server.create_nexus(
+    control_port, output_port, log_port = server.create_nexus(
         file=args.configfile,
         control_port=args.control_port,
         output_port=args.output_port,
@@ -240,7 +233,7 @@ def run_server(args):
     curr_dt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(
         f"{curr_dt} Server running on (control, output, log) ports "
-        f"({control_port}, {output_port}, {logging_port}).\n"
+        f"({control_port}, {output_port}, {log_port}).\n"
         f"Press Ctrl-C to quit."
     )
     server.start_nexus()

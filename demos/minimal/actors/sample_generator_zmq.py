@@ -65,7 +65,7 @@ class Generator(ZmqActor):
             data_id = self.client.put(self.data[self.frame_num])
             try:
                 self.q_out.put(data_id)
-                # logger.info(f"Sent {self.data[self.frame_num]} with key {data_id}")
+                # self.improv_logger.info(f"Sent {self.data[self.frame_num]} with key {data_id}")
                 self.frame_num += 1
 
             except Exception as e:

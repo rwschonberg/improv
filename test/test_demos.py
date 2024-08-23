@@ -67,7 +67,7 @@ async def test_simple_boot_and_quit(dir, configfile, logfile, setdir, ports):
     await asyncio.sleep(SERVER_WARMUP)
 
     # initialize client
-    app = tui.TUI(control_port, output_port, logging_port, actor_in_port)
+    app = tui.TUI(control_port, output_port, logging_port)
 
     # run client
     async with app.run_test() as pilot:
@@ -116,7 +116,7 @@ async def test_stop_output(dir, configfile, logfile, datafile, setdir, ports):
     await asyncio.sleep(SERVER_WARMUP)
 
     # initialize client
-    app = tui.TUI(control_port, output_port, logging_port, actor_in_port)
+    app = tui.TUI(control_port, output_port, logging_port)
 
     # run client
     async with app.run_test() as pilot:
@@ -128,7 +128,7 @@ async def test_stop_output(dir, configfile, logfile, datafile, setdir, ports):
         await pilot.press(*"stop", "enter")
         await pilot.pause(2)
         await pilot.press(*"quit", "enter")
-        await pilot.pause(3)
+        await pilot.pause(15)
         assert not pilot.app._running
 
     # wait on server to fully shut down

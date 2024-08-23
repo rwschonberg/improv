@@ -387,15 +387,16 @@ Actor = ManagedActor
 
 class RunManager:
     def __init__(
-        self, name, actions, links, nexus_sig_port, runStoreInterface=None, timeout=1e-6
+        self, name, actions, links, nexus_sig_port, improv_logger, runStoreInterface=None, timeout=1e-6
     ):
         self.run = False
         self.stop = False
         self.config = False
         self.nexus_sig_port = nexus_sig_port
+        self.improv_logger = improv_logger
 
         self.actorName = name
-        logger.debug("RunManager for {} created".format(self.actorName))
+        self.improv_logger.debug("RunManager for {} created".format(self.actorName))
 
         self.actions = actions
         self.links = links
