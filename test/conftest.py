@@ -143,7 +143,7 @@ def start_nexus_minimal_zmq(ports):
 
 @pytest.fixture
 def zmq_actor(ports):
-    actor = ZmqActor(ports[3], None, None, None, None, name="test")
+    actor = ZmqActor(ports[3], None, None, None, None, None, name="test")
 
     p = multiprocessing.Process(target=actor_startup, args=(actor,))
 
@@ -155,4 +155,3 @@ def zmq_actor(ports):
 
 def actor_startup(actor):
     actor.register_with_nexus()
-    actor.run()

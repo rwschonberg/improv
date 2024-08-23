@@ -44,9 +44,10 @@ class BrokerInfoReplyMsg:
 
 
 class LogInfoMsg:
-    def __init__(self, name, pull_port, info):
+    def __init__(self, name, pull_port, pub_port, info):
         self.name = name
         self.pull_port = pull_port
+        self.pub_port = pub_port
         self.info = info
 
 

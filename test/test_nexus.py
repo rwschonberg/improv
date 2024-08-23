@@ -526,20 +526,6 @@ def test_save_every_write(caplog, setdir, ports, server_port_num):
     assert fsync_schedule["appendfsync"] == "always"
 
 
-@pytest.mark.skip(reason="Nexus no longer deletes files on shutdown. Nothing to test.")
-def test_store_already_deleted_issues_warning(caplog):
-    nex = Nexus("test")
-    nex._start_store_interface(10000)
-    store_location = nex.store_loc
-    StoreInterface(store_loc=nex.store_loc)
-    os.remove(nex.store_loc)
-    nex.destroy_nexus()
-    assert any(
-        "StoreInterface file {} is already deleted".format(store_location) in record.msg
-        for record in caplog.records
-    )
-
-
 @pytest.mark.skip(reason="unfinished")
 def test_actor_sub(setdir, capsys, monkeypatch, ports):
     monkeypatch.setattr("improv.nexus.input", lambda: "setup\n")
@@ -565,10 +551,7 @@ def test_actor_sub(setdir, capsys, monkeypatch, ports):
     assert True
 
 
-@pytest.mark.skip(
-    reason="skipping to prevent issues with orphaned stores. TODO fix this"
-)
-def test_sigint_exits_cleanly(ports, tmp_path):
+def test_sigint_exits_cleanly(ports, setdir):
     server_opts = [
         "improv",
         "server",
@@ -577,12 +560,15 @@ def test_sigint_exits_cleanly(ports, tmp_path):
         "-o",
         str(ports[1]),
         "-f",
-        tmp_path / "global.log",
+        "global.log",
+        "minimal.yaml",
     ]
 
     server = subprocess.Popen(
         server_opts, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
     )
+
+    time.sleep(5)
 
     server.send_signal(signal.SIGINT)
 

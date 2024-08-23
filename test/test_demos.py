@@ -138,8 +138,8 @@ async def test_stop_output(dir, configfile, logfile, datafile, setdir, ports):
     os.path.isfile(datafile)
 
     # then remove that file and logile
-    # os.remove(datafile)
-    # os.remove(logfile)  # later, might want to read this file and check for messages
+    os.remove(datafile)
+    os.remove(logfile)  # later, might want to read this file and check for messages
 
 
 def test_zmq_ps(ip, unused_tcp_port):

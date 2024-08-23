@@ -17,6 +17,7 @@ from importlib import import_module
 import zmq.asyncio as zmq
 from zmq import PUB, REP, REQ, SocketOption
 
+from improv import log
 from improv.broker import bootstrap_broker
 from improv.log import bootstrap_log_server
 from improv.messaging import (
@@ -46,10 +47,6 @@ logger.setLevel(logging.DEBUG)
 #  send nexus their information, and get a reply back of the broker and
 #  logger ports. long-term plan though.
 
-# TODO: Need to figure out what's going on with the TUI; it's possible
-#  that we could just construct another zmq log handler on the server
-#  which will push messages out to the TUI. TBD.
-
 # TODO: links were implicitly assumed to be one connection per link.
 #  It turns out a link can be present in many connections so I need
 #  to think through exactly what this is going to mean for the design.
@@ -57,6 +54,8 @@ logger.setLevel(logging.DEBUG)
 #  really pub to multiple topics at once without multiple messages.
 #  but then again, this is what we would have done anyway before with
 #  multiple downstreams connected to one upstream?
+
+# TODO: hook Nexus up to logger - just add a handler once we're back from setup
 
 
 class ActorState:
@@ -74,6 +73,12 @@ class Nexus:
     """Main server class for handling objects in improv"""
 
     def __init__(self, name="Server"):
+        self.actor_in_socket_port: int | None = None
+        self.actor_in_socket: zmq.Socket | None = None
+        self.in_socket: zmq.Socket | None = None
+        self.out_socket: zmq.Socket | None = None
+        self.zmq_context: zmq.Context | None = None
+        self.logger_pub_port: int | None = None
         self.logger_pull_port: int | None = None
         self.logger_in_socket: zmq.Socket | None = None
         self.p_logger: multiprocessing.Process | None = None
@@ -182,7 +187,12 @@ class Nexus:
 
         loop = asyncio.get_event_loop()
 
+        loop.set_debug(True)
+
         loop.run_until_complete(self.start_logger())
+
+        logger.addHandler(log.ZmqLogHandler("localhost", self.logger_pull_port))
+
         loop.run_until_complete(self.start_message_broker())
 
         self.configure_redis_persistence()
@@ -448,17 +458,17 @@ class Nexus:
         logger.warning("Destroying Nexus")
         self._closeStoreInterface()
 
-        if hasattr(self, "out_socket"):
+        if self.out_socket:
             self.out_socket.close(linger=0)
-        if hasattr(self, "in_socket"):
+        if self.in_socket:
             self.in_socket.close(linger=0)
-        if hasattr(self, "actor_in_socket"):
+        if self.actor_in_socket:
             self.actor_in_socket.close(linger=0)
         if self.broker_in_socket:
             self.broker_in_socket.close(linger=0)
         if self.logger_in_socket:
             self.logger_in_socket.close(linger=0)
-        if hasattr(self, "zmq_context"):
+        if self.zmq_context:
             self.zmq_context.destroy(linger=0)
 
         self._shutdown_broker()
@@ -499,6 +509,8 @@ class Nexus:
         for s in signals:
             loop.add_signal_handler(s, lambda s=s: self.stop_polling_and_quit(s))
 
+        logger.info("Nexus signal handler added")
+
         while not self.flags["quit"]:
             try:
                 done, pending = await asyncio.wait(
@@ -521,7 +533,7 @@ class Nexus:
 
         return "Shutting Down"
 
-    async def stop_polling_and_quit(self, signal):
+    def stop_polling_and_quit(self, signal):
         """
         quit the process and stop polling signals from queues
 
@@ -530,13 +542,13 @@ class Nexus:
                              One of: signal.SIGHUP, signal.SIGTERM, signal.SIGINT
             queues (improv.link.AsyncQueue): Comm queues for links.
         """
-        logger.warn(
+        logger.warning(
             "Shutting down via signal handler due to {}. \
                 Steps may be out of order or dirty.".format(
                 signal
             )
         )
-        await self.stop_polling(signal)
+        asyncio.ensure_future(self.stop_polling(signal))
         self.flags["quit"] = True
         self.early_exit = True
         self.quit()
@@ -959,6 +971,7 @@ class Nexus:
             nexus_comm_port=self.actor_in_socket_port,
             broker_sub_port=self.broker_sub_port,
             broker_pub_port=self.broker_pub_port,
+            log_pull_port=self.logger_pull_port,
             outgoing_links=outgoing_links,
             incoming_links=incoming_links,
             **actor.options,
@@ -1065,14 +1078,12 @@ class Nexus:
     async def start_logger(self):
         self.p_logger = multiprocessing.Process(
             target=bootstrap_log_server,
-            args=(
-                "localhost",
-                self.broker_in_port,
-            ),
+            args=("localhost", self.broker_in_port, "remote.global.log"),
         )
         self.p_logger.start()
         logger_info: LogInfoMsg = await self.broker_in_socket.recv_pyobj()
         self.logger_pull_port = logger_info.pull_port
+        self.logger_pub_port = logger_info.pub_port
         await self.broker_in_socket.send_pyobj(
             LogInfoReplyMsg(logger_info.name, "OK", "registered logger information")
         )

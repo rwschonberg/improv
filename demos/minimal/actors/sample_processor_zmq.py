@@ -31,14 +31,13 @@ class Processor(ZmqActor):
         self.frame = None
         self.avg_list = []
         self.frame_num = 1
-        logger.info("Completed setup for Processor")
+        self.improv_logger.info("Completed setup for Processor")
 
     def stop(self):
         """Trivial stop function for testing purposes."""
 
-        logger.info("Processor stopping")
+        self.improv_logger.info("Processor stopping")
         return 0
-
 
     def run_step(self):
         """Gets from the input queue and calculates the average.

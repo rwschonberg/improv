@@ -19,6 +19,8 @@ def test_sub_link():
     link_socket_string = link_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
     link_socket_port = int(link_socket_string.split(":")[-1])
 
+    link_socket.poll(timeout=0)
+
     link_pub_socket = ctx.socket(zmq.PUB)
     link_pub_socket.connect(f"tcp://localhost:{link_socket_port}")
 

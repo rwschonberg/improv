@@ -10,6 +10,7 @@ import zmq
 from zmq import SocketOption
 
 import improv.store
+from improv import log
 from improv.link import ZmqLink
 from improv.messaging import ActorStateMsg, ActorStateReplyMsg, ActorSignalReplyMsg
 from improv.store import StoreInterface
@@ -51,6 +52,7 @@ class AbstractActor:
         self.client = None
         self.store_loc = store_loc
         self.lower_priority = False
+        self.improv_logger = None
         self.store_port_num = store_port_num
 
         # Start with no explicit data queues.
@@ -197,6 +199,9 @@ class AbstractActor:
     def setup_links(self):
         pass
 
+    def setup_logging(self):
+        raise NotImplementedError
+
 
 class ManagedActor(AbstractActor):
     def __init__(self, *args, **kwargs):
@@ -211,9 +216,12 @@ class ManagedActor(AbstractActor):
 
     def run(self):
         self.register_with_nexus()
+        self.setup_logging()
         self.register_with_broker()
-        self.setup_links()  # TODO: write this
-        with RunManager(self.name, self.actions, self.links, self.nexus_sig_port):
+        self.setup_links()
+        with RunManager(
+            self.name, self.actions, self.links, self.nexus_sig_port, self.improv_logger
+        ):
             pass
 
     def run_step(self):
@@ -226,17 +234,19 @@ class ZmqActor(ManagedActor):
         nexus_comm_port,
         broker_sub_port,
         broker_pub_port,
+        log_pull_port,
         outgoing_links,
         incoming_links,
         broker_host="localhost",
-        nexus_comm_host="localhost",
+        log_host="localhost",
+        nexus_host="localhost",
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.broker_pub_socket: zmq.Socket | None = None
         self.zmq_context: zmq.Context | None = None
-        self.nexus_comm_host: str = nexus_comm_host
+        self.nexus_host: str = nexus_host
         self.nexus_comm_port: int = nexus_comm_port
         self.nexus_sig_port: int | None = None
         self.nexus_comm_socket: zmq.Socket | None = None
@@ -244,14 +254,14 @@ class ZmqActor(ManagedActor):
         self.broker_sub_port: int = broker_sub_port
         self.broker_pub_port: int = broker_pub_port
         self.broker_host: str = broker_host
+        self.log_pull_port: int = log_pull_port
+        self.log_host: str = log_host
         self.outgoing_links: list[LinkInfo] = outgoing_links
         self.incoming_links: list[LinkInfo] = incoming_links
         self.incoming_sockets: dict[str, zmq.Socket] = dict()
 
         # Redefine dictionary of actions for the RunManager
         self.actions = {"setup": self.setup, "run": self.run_step, "stop": self.stop}
-        logger.info(f"{self.name} outgoing {str(self.outgoing_links)}")
-        logger.info(f"{self.name} incoming {str(self.incoming_links)}")
 
     def register_with_nexus(self):
         logger.info(f"Actor {self.name} registering with nexus")
@@ -260,7 +270,7 @@ class ZmqActor(ManagedActor):
         # create a REQ socket pointed at nexus' global actor in port
         self.nexus_comm_socket = self.zmq_context.socket(zmq.REQ)
         self.nexus_comm_socket.connect(
-            f"tcp://{self.nexus_comm_host}:{self.nexus_comm_port}"
+            f"tcp://{self.nexus_host}:{self.nexus_comm_port}"
         )
 
         # create a REP socket for comms from Nexus and save its state
@@ -294,7 +304,7 @@ class ZmqActor(ManagedActor):
         logger.info(f"Actor {self.name} registered with Nexus")
 
     def register_with_broker(self):  # really opening sockets here
-        logger.info(f"Actor {self.name} registering with broker")
+        self.improv_logger.info(f"Actor {self.name} registering with broker")
         if len(self.outgoing_links) > 0:
             self.broker_pub_socket = self.zmq_context.socket(zmq.PUB)
             self.broker_pub_socket.connect(
@@ -306,10 +316,10 @@ class ZmqActor(ManagedActor):
             new_socket.connect(f"tcp://{self.broker_host}:{self.broker_pub_port}")
             new_socket.subscribe(incoming_link.link_topic)
             self.incoming_sockets[incoming_link.link_name] = new_socket
-        logger.info(f"Actor {self.name} registered with broker")
+        self.improv_logger.info(f"Actor {self.name} registered with broker")
 
     def setup_links(self):
-        logger.info(f"Actor {self.name} setting up links")
+        self.improv_logger.info(f"Actor {self.name} setting up links")
         for outgoing_link in self.outgoing_links:
             self.links[outgoing_link.link_name] = ZmqLink(
                 self.broker_pub_socket,
@@ -328,7 +338,16 @@ class ZmqActor(ManagedActor):
             self.q_out = self.links["q_out"]
         if "q_in" in self.links.keys():
             self.q_in = self.links["q_in"]
-        logger.info(f"Actor {self.name} finished setting up links")
+        self.improv_logger.info(f"Actor {self.name} finished setting up links")
+
+    def setup_logging(self):
+        self.improv_logger = logging.getLogger(self.name)
+        self.improv_logger.setLevel(logging.INFO)
+        for handler in logger.handlers:
+            self.improv_logger.addHandler(handler)
+        self.improv_logger.addHandler(
+            log.ZmqLogHandler(self.log_host, self.log_pull_port, self.zmq_context)
+        )
 
 
 class AsyncActor(AbstractActor):

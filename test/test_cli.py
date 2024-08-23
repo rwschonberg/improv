@@ -9,8 +9,8 @@ import improv.cli as cli
 
 from conftest import ports
 
-SERVER_WARMUP = 16
-SERVER_TIMEOUT = 16
+SERVER_WARMUP = 5
+SERVER_TIMEOUT = 10
 
 
 @pytest.fixture

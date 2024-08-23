@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import logging
+import sys
 from logging import handlers
 from logging.handlers import QueueHandler
 
 import zmq
 from zmq import SocketOption
+from zmq.log.handlers import PUBHandler
+
 
 from improv.messaging import LogInfoMsg
 
@@ -13,8 +16,8 @@ from improv.messaging import LogInfoMsg
 # logger = logging.getLogger(__name__)
 
 
-def bootstrap_log_server(nexus_hostname, nexus_port):
-    log_server = LogServer(nexus_hostname, nexus_port, "global.log")
+def bootstrap_log_server(nexus_hostname, nexus_port, log_filename="global.log"):
+    log_server = LogServer(nexus_hostname, nexus_port, log_filename)
     log_server.register_with_nexus()
     log_server.serve(log_server.read_and_log_message)
 
@@ -37,9 +40,9 @@ class ZmqPullListener(handlers.QueueListener):
 
 
 class ZmqLogHandler(QueueHandler):
-    def __init__(self, hostname, port, ctx):
-        self.ctx = ctx
-        self.socket = ctx.socket(zmq.PUSH)
+    def __init__(self, hostname, port, ctx=None):
+        self.ctx = ctx if ctx else zmq.Context()
+        self.socket = self.ctx.socket(zmq.PUSH)
         self.socket.connect(f"tcp://{hostname}:{port}")
         super().__init__(self.socket)
 
@@ -52,6 +55,8 @@ class ZmqLogHandler(QueueHandler):
 
 class LogServer:
     def __init__(self, nexus_hostname, nexus_comm_port, log_filename):
+        self.pub_port: int | None = None
+        self.pub_socket: zmq.Socket | None = None
         self.log_filename = log_filename
         self.nexus_hostname: str = nexus_hostname
         self.nexus_comm_port: int = nexus_comm_port
@@ -67,10 +72,16 @@ class LogServer:
         self.nexus_socket = self.zmq_context.socket(zmq.REQ)
         self.nexus_socket.connect(f"tcp://{self.nexus_hostname}:{self.nexus_comm_port}")
 
+        self.pub_socket = self.zmq_context.socket(zmq.PUB)
+        self.pub_socket.bind("tcp://*:0")
+        pub_port_string = self.pub_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
+        self.pub_port = int(pub_port_string.split(":")[-1])
+
         self.listener = ZmqPullListener(
             self.zmq_context,
-            logging.StreamHandler(),
+            logging.StreamHandler(sys.stdout),
             logging.FileHandler(self.log_filename),
+            PUBHandler(self.pub_socket, self.zmq_context, "nexus_logging"),
         )
 
         self.listener.start()
@@ -78,6 +89,7 @@ class LogServer:
         port_info = LogInfoMsg(
             "broker",
             self.listener.pull_port,
+            self.pub_port,
             "Port up and running, ready to log messages",
         )
 

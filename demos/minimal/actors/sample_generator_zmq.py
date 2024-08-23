@@ -30,7 +30,7 @@ class Generator(ZmqActor):
         """
 
         self.data = np.asmatrix(np.random.randint(100, size=(100, 5)))
-        logger.info("Completed setup for Generator")
+        self.improv_logger.info("Completed setup for Generator")
 
     # def run(self):
     #     """ Send array into the store.
@@ -46,8 +46,8 @@ class Generator(ZmqActor):
     def stop(self):
         """Save current randint vector to a file."""
 
-        print("Generator stopping")
-        np.save(f"sample_generator_data_{date.today()}", self.data)
+        self.improv_logger.info("Generator stopping")
+        np.save(f"sample_generator_data", self.data)
         # This is not the best example of a save function,
         # will overwrite previous files with the same name.
         return 0
@@ -69,7 +69,7 @@ class Generator(ZmqActor):
                 self.frame_num += 1
 
             except Exception as e:
-                logger.error(f"Generator Exception: {e}")
+                self.improv_logger.error(f"Generator Exception: {e}")
         else:
             self.data = np.concatenate(
                 (self.data, np.asmatrix(np.random.randint(10, size=(1, 5)))), axis=0
