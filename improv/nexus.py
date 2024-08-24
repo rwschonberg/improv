@@ -186,13 +186,10 @@ class Nexus:
         self.broker_in_port = int(broker_in_port_string.split(":")[-1])
 
         loop = asyncio.get_event_loop()
-
         loop.set_debug(True)
 
         loop.run_until_complete(self.start_logger())
-
         logger.addHandler(log.ZmqLogHandler("localhost", self.logger_pull_port))
-
         loop.run_until_complete(self.start_message_broker())
 
         self.configure_redis_persistence()

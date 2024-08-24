@@ -33,7 +33,7 @@ class SocketLog(TextLog):
         super().__init__(*args, **kwargs)
         self.socket = context.socket(SUB)
         self.socket.connect("tcp://%s" % str(port))
-        self.socket.setsockopt_string(SUBSCRIBE, "nexus_logging")
+        self.socket.setsockopt_string(SUBSCRIBE, "")
         self.history = []
         self.print_debug = False
 

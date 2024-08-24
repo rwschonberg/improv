@@ -93,7 +93,7 @@ def test_settings_override_random_ports(setdir, ports):
     nex = Nexus("test")
     with open(config_file, "r") as ymlfile:
         cfg = yaml.safe_load(ymlfile)["settings"]
-    control_port, output_port = nex.create_nexus(
+    control_port, output_port, log_server_port = nex.create_nexus(
         file=config_file, control_port=0, output_port=0
     )
     nex.destroy_nexus()
