@@ -29,7 +29,7 @@ async def sockets(ports):
 
 @pytest.fixture
 async def app(ports):
-    mock = tui.TUI(*ports)
+    mock = tui.TUI(*ports[:-1])
     yield mock
     time.sleep(0.5)
 
@@ -58,8 +58,13 @@ async def test_log_panel_receives_logging(app, logger):
 
 
 async def test_input_box_echoed_to_console(app):
+    ctx = zmq.Context()
+    mock_server_socket = ctx.socket(REP)
+    mock_server_socket.bind(f"tcp://*:{app.control_port.split(':')[1]}")
     async with app.run_test() as pilot:
         await pilot.press(*"foo", "enter")
+        await mock_server_socket.recv_string()
+        await mock_server_socket.send_string("test reply")
         console = pilot.app.get_widget_by_id("console")
         assert console.history[0] == "foo"
 
