@@ -13,11 +13,13 @@ from zmq.log.handlers import PUBHandler
 from improv.messaging import LogInfoMsg
 
 
-# logger = logging.getLogger(__name__)
+local_log = logging.getLogger(__name__)
 
 
-def bootstrap_log_server(nexus_hostname, nexus_port, log_filename="global.log"):
-    log_server = LogServer(nexus_hostname, nexus_port, log_filename)
+
+def bootstrap_log_server(nexus_hostname, nexus_port, log_filename="global.log", logger_pull_port=None):
+    local_log.addHandler(logging.FileHandler("log_server.log"))
+    log_server = LogServer(nexus_hostname, nexus_port, log_filename, logger_pull_port)
     log_server.register_with_nexus()
     log_server.serve(log_server.read_and_log_message)
 
@@ -54,8 +56,8 @@ class ZmqLogHandler(QueueHandler):
 
 
 class LogServer:
-    def __init__(self, nexus_hostname, nexus_comm_port, log_filename):
-        self.pub_port: int | None = None
+    def __init__(self, nexus_hostname, nexus_comm_port, log_filename, pub_port):
+        self.pub_port: int | None = pub_port if pub_port else 0
         self.pub_socket: zmq.Socket | None = None
         self.log_filename = log_filename
         self.nexus_hostname: str = nexus_hostname
@@ -73,7 +75,11 @@ class LogServer:
         self.nexus_socket.connect(f"tcp://{self.nexus_hostname}:{self.nexus_comm_port}")
 
         self.pub_socket = self.zmq_context.socket(zmq.PUB)
-        self.pub_socket.bind("tcp://*:0")
+        try:
+            self.pub_socket.bind(f"tcp://*:{self.pub_port}")
+        except Exception as e:
+            local_log.error(e)
+            exit(1)  # if we can't bind to the specified port, we need to bail out
         pub_port_string = self.pub_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
         self.pub_port = int(pub_port_string.split(":")[-1])
 

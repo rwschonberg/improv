@@ -608,7 +608,7 @@ def test_nexus_actor_comm_setup(ports, setdir):
         store_size=10000000,
         control_port=ports[0],
         output_port=ports[1],
-        actor_in_port=ports[3],
+        actor_in_port=ports[2],
     )
 
     actor = nex.actors["Generator"]
@@ -632,6 +632,6 @@ def test_nex_cfg(ports, setdir):
         store_size=100000000,
         control_port=ports[0],
         output_port=ports[1],
-        actor_in_port=ports[3],
+        actor_in_port=ports[2],
     )
     nex.start_nexus()

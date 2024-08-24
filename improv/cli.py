@@ -229,6 +229,7 @@ def run_server(args):
         file=args.configfile,
         control_port=args.control_port,
         output_port=args.output_port,
+        log_server_pub_port=args.logging_port
     )
     curr_dt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(
@@ -386,13 +387,16 @@ def _get_ports(logfile):
     # read logfile to get ports
     with open(logfile, mode="r") as logfile:
         contents = logfile.read()
+        return _read_log_contents_for_ports(contents)
 
-        pattern = re.compile(r"(?<=\(control, output, log\) ports \()\d*, \d*, \d*")
 
-        # get most recent match (log file may contain old runs)
-        port_str_list = pattern.findall(contents)
-        if port_str_list:
-            port_str = port_str_list[-1]
-            return (int(p) for p in port_str.split(", "))
-        else:
-            return None
+def _read_log_contents_for_ports(logfile_contents):
+    pattern = re.compile(r"(?<=\(control, output, log\) ports \()\d*, \d*, \d*")
+
+    # get most recent match (log file may contain old runs)
+    port_str_list = pattern.findall(logfile_contents)
+    if port_str_list:
+        port_str = port_str_list[-1]
+        return (int(p) for p in port_str.split(", "))
+    else:
+        return None

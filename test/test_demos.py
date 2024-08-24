@@ -4,6 +4,9 @@ import pytest
 import os
 import asyncio
 import subprocess
+
+from improv import cli
+
 import improv.tui as tui
 import concurrent.futures
 import logging
@@ -76,7 +79,7 @@ async def test_simple_boot_and_quit(dir, configfile, logfile, setdir, ports):
         await pilot.pause(0.5)
         await pilot.press(*"quit", "enter")
         await pilot.pause(2)
-        # assert not pilot.app._running
+        assert not pilot.app._running
 
     # wait on server to fully shut down
     server.wait(10)

@@ -34,6 +34,8 @@ from improv.actor import Signal, Actor, LinkInfo
 from improv.config import Config
 from improv.link import Link
 
+ASYNC_DEBUG = False
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -107,6 +109,7 @@ class Nexus:
         store_size=10_000_000,
         control_port=0,
         output_port=0,
+        log_server_pub_port=None,
         actor_in_port=None,
     ):
         """Function to initialize class variables based on config file.
@@ -186,9 +189,10 @@ class Nexus:
         self.broker_in_port = int(broker_in_port_string.split(":")[-1])
 
         loop = asyncio.get_event_loop()
-        loop.set_debug(True)
+        if ASYNC_DEBUG:
+            loop.set_debug(True)
 
-        loop.run_until_complete(self.start_logger())
+        loop.run_until_complete(self.start_logger(log_server_pub_port))
         logger.addHandler(log.ZmqLogHandler("localhost", self.logger_pull_port))
         loop.run_until_complete(self.start_message_broker())
 
@@ -1072,12 +1076,25 @@ class Nexus:
         self.p_watch.start()
         self.processes.append(self.p_watch)
 
-    async def start_logger(self):
+    async def start_logger(self, log_server_pub_port):
         self.p_logger = multiprocessing.Process(
             target=bootstrap_log_server,
-            args=("localhost", self.broker_in_port, "remote.global.log"),
+            args=(
+                "localhost",
+                self.broker_in_port,
+                "remote.global.log",
+                log_server_pub_port
+            ),
         )
         self.p_logger.start()
+        time.sleep(3)
+        if not self.p_logger.is_alive():
+            logger.error("Logger process failed to start. "
+                         "Please see the log server log file for more information. "
+                         "The improv server will now exit.")
+            self.quit()
+            raise Exception("Could not start log server.")
+
         logger_info: LogInfoMsg = await self.broker_in_socket.recv_pyobj()
         self.logger_pull_port = logger_info.pull_port
         self.logger_pub_port = logger_info.pub_port
@@ -1090,6 +1107,14 @@ class Nexus:
             target=bootstrap_broker, args=("localhost", self.broker_in_port)
         )
         self.p_broker.start()
+        time.sleep(3)
+        if not self.p_broker.is_alive():
+            logger.error("Broker process failed to start. "
+                         "Please see the log file for more information. "
+                         "The improv server will now exit.")
+            self.quit()
+            raise Exception("Could not start message broker server.")
+
         broker_info: BrokerInfoMsg = await self.broker_in_socket.recv_pyobj()
         self.broker_sub_port = broker_info.sub_port
         self.broker_pub_port = broker_info.pub_port
