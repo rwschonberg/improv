@@ -48,7 +48,9 @@ def test_pub_link():
 
     link_sub_socket = ctx.socket(zmq.SUB)
     link_sub_socket.connect(f"tcp://localhost:{link_socket_port}")
+    link_sub_socket.poll(timeout=0)
     link_sub_socket.subscribe("test_topic")
+    link_sub_socket.poll(timeout=0)
 
     link = ZmqLink(link_socket, "test_link", "test_topic")
     yield link, link_sub_socket
