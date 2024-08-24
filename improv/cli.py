@@ -8,8 +8,6 @@ import sys
 import psutil
 import time
 import datetime
-from zmq import SocketOption
-from zmq.log.handlers import PUBHandler
 from improv.tui import TUI
 from improv.nexus import Nexus
 
@@ -229,7 +227,7 @@ def run_server(args):
         file=args.configfile,
         control_port=args.control_port,
         output_port=args.output_port,
-        log_server_pub_port=args.logging_port
+        log_server_pub_port=args.logging_port,
     )
     curr_dt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(

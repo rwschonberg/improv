@@ -387,7 +387,14 @@ Actor = ManagedActor
 
 class RunManager:
     def __init__(
-        self, name, actions, links, nexus_sig_port, improv_logger, runStoreInterface=None, timeout=1e-6
+        self,
+        name,
+        actions,
+        links,
+        nexus_sig_port,
+        improv_logger,
+        runStoreInterface=None,
+        timeout=1e-6,
     ):
         self.run = False
         self.stop = False

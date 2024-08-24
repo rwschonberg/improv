@@ -16,8 +16,9 @@ from improv.messaging import LogInfoMsg
 local_log = logging.getLogger(__name__)
 
 
-
-def bootstrap_log_server(nexus_hostname, nexus_port, log_filename="global.log", logger_pull_port=None):
+def bootstrap_log_server(
+    nexus_hostname, nexus_port, log_filename="global.log", logger_pull_port=None
+):
     local_log.addHandler(logging.FileHandler("log_server.log"))
     log_server = LogServer(nexus_hostname, nexus_port, log_filename, logger_pull_port)
     log_server.register_with_nexus()

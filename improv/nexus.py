@@ -1083,15 +1083,17 @@ class Nexus:
                 "localhost",
                 self.broker_in_port,
                 "remote.global.log",
-                log_server_pub_port
+                log_server_pub_port,
             ),
         )
         self.p_logger.start()
         time.sleep(3)
         if not self.p_logger.is_alive():
-            logger.error("Logger process failed to start. "
-                         "Please see the log server log file for more information. "
-                         "The improv server will now exit.")
+            logger.error(
+                "Logger process failed to start. "
+                "Please see the log server log file for more information. "
+                "The improv server will now exit."
+            )
             self.quit()
             raise Exception("Could not start log server.")
 
@@ -1109,9 +1111,11 @@ class Nexus:
         self.p_broker.start()
         time.sleep(3)
         if not self.p_broker.is_alive():
-            logger.error("Broker process failed to start. "
-                         "Please see the log file for more information. "
-                         "The improv server will now exit.")
+            logger.error(
+                "Broker process failed to start. "
+                "Please see the log file for more information. "
+                "The improv server will now exit."
+            )
             self.quit()
             raise Exception("Could not start message broker server.")
 
