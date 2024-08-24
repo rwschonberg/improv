@@ -856,7 +856,7 @@ class Nexus:
             )
             # try with failure, incrementing port number
             self.p_StoreInterface = self.start_redis(size)
-            time.sleep(3)
+            time.sleep(1)
             if self.p_StoreInterface.poll():
                 logger.error("Could not start Redis on specified port number.")
                 raise Exception("Could not start Redis on specified port.")
@@ -868,7 +868,7 @@ class Nexus:
                 )
                 # try with failure, incrementing port number
                 self.p_StoreInterface = self.start_redis(size)
-                time.sleep(3)
+                time.sleep(1)
                 if self.p_StoreInterface.poll():  # Redis could not start
                     logger.info("Could not connect to port {}".format(self.store_port))
                     self.store_port = str(int(self.store_port) + 1)
@@ -1087,7 +1087,7 @@ class Nexus:
             ),
         )
         self.p_logger.start()
-        time.sleep(3)
+        time.sleep(1)
         if not self.p_logger.is_alive():
             logger.error(
                 "Logger process failed to start. "
@@ -1109,7 +1109,7 @@ class Nexus:
             target=bootstrap_broker, args=("localhost", self.broker_in_port)
         )
         self.p_broker.start()
-        time.sleep(3)
+        time.sleep(1)
         if not self.p_broker.is_alive():
             logger.error(
                 "Broker process failed to start. "

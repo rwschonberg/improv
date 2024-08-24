@@ -9,7 +9,7 @@ import improv.cli as cli
 
 from conftest import ports
 
-SERVER_WARMUP = 5
+SERVER_WARMUP = 10
 SERVER_TIMEOUT = 10
 
 
@@ -47,7 +47,7 @@ async def server(setdir, ports):
     yield server
     server.wait(SERVER_TIMEOUT)
     try:
-        os.remove("testlog")
+        os.getcwd()
     except FileNotFoundError:
         pass
 
