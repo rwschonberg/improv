@@ -423,14 +423,14 @@ class RunManager:
                 try:
                     self.actions["run"]()
                 except Exception as e:
-                    logger.error("Actor {} error in run: {}".format(an, e))
-                    logger.error(traceback.format_exc())
+                    self.improv_logger.error("Actor {} error in run: {}".format(an, e))
+                    self.improv_logger.error(traceback.format_exc())
             elif self.stop:
                 try:
                     self.actions["stop"]()
                 except Exception as e:
-                    logger.error("Actor {} error in stop: {}".format(an, e))
-                    logger.error(traceback.format_exc())
+                    self.improv_logger.error("Actor {} error in stop: {}".format(an, e))
+                    self.improv_logger.error(traceback.format_exc())
                 self.stop = False  # Run once
             elif self.config:
                 try:
@@ -443,14 +443,14 @@ class RunManager:
                         )
                     )
                     res = self.q_comm.get()
-                    logger.info(
+                    self.improv_logger.info(
                         f"Actor {res.actor_name} got state update reply:\n"
                         f"Status: {res.status}\n"
                         f"Info: {res.info}\n"
                     )
                 except Exception as e:
-                    logger.error("Actor {} error in setup: {}".format(an, e))
-                    logger.error(traceback.format_exc())
+                    self.improv_logger.error("Actor {} error in setup: {}".format(an, e))
+                    self.improv_logger.error(traceback.format_exc())
                 self.config = False
 
             # Check for new Signals received from Nexus
@@ -458,27 +458,27 @@ class RunManager:
                 signal_msg = self.q_sig.get(timeout=self.timeout)
                 signal = signal_msg.signal
                 self.q_sig.put(ActorSignalReplyMsg(an, signal, "OK", ""))
-                logger.warning("{} received Signal {}".format(self.actorName, signal))
+                self.improv_logger.warning("{} received Signal {}".format(self.actorName, signal))
                 if signal == Signal.run():
                     self.run = True
-                    logger.warning("Received run signal, begin running")
+                    self.improv_logger.warning("Received run signal, begin running")
                 elif signal == Signal.setup():
                     self.config = True
                 elif signal == Signal.stop():
                     self.run = False
                     self.stop = True
-                    logger.warning(f"actor {self.actorName} received stop signal")
+                    self.improv_logger.warning(f"actor {self.actorName} received stop signal")
                 elif signal == Signal.quit():
-                    logger.warning("Received quit signal, aborting")
+                    self.improv_logger.warning("Received quit signal, aborting")
                     break
                 elif signal == Signal.pause():
-                    logger.warning("Received pause signal, pending...")
+                    self.improv_logger.warning("Received pause signal, pending...")
                     self.run = False
                 elif signal == Signal.resume():  # currently treat as same as run
-                    logger.warning("Received resume signal, resuming")
+                    self.improv_logger.warning("Received resume signal, resuming")
                     self.run = True
                 elif signal == Signal.status():
-                    logger.info(f"Actor {self.actorName} received status request")
+                    self.improv_logger.info(f"Actor {self.actorName} received status request")
             except KeyboardInterrupt:
                 break
             except Empty:
@@ -489,8 +489,8 @@ class RunManager:
         return None
 
     def __exit__(self, type, value, traceback):
-        logger.info("Ran for " + str(time.time() - self.start) + " seconds")
-        logger.warning("Exiting RunManager")
+        self.improv_logger.info("Ran for " + str(time.time() - self.start) + " seconds")
+        self.improv_logger.warning("Exiting RunManager")
         return None
 
 

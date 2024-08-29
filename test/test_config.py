@@ -6,12 +6,13 @@ import yaml
 # from importlib import import_module
 
 # from improv.config import RepeatedActorError
-from improv.config import Config
+from improv.config import Config, RepeatedConnectionsError
 from improv.utils import checks
 
 import logging
 
 logger = logging.getLogger(__name__)
+
 
 # set global variables
 
@@ -34,33 +35,7 @@ def test_init(test_input, set_configdir):
     """
 
     cfg = Config(test_input)
-    assert cfg.configFile == test_input
-
-
-# def test_init_attributes():
-#     """ Tests if config has correct default attributes on initialization.
-
-#     Checks if actors, connection, and hasGUI are all empty or
-#     nonexistent. Detects errors by maintaining a list of errors, and
-#     then adding to it every time an unexpected behavior is encountered.
-
-#     Asserts:
-#         If the default attributes are empty or nonexistent.
-
-#     """
-
-#     cfg = config()
-#     errors = []
-
-#     if(cfg.actors != {}):
-#         errors.append("config.actors is not empty! ")
-#     if(cfg.connections != {}):
-#         errors.append("config.connections is not empty! ")
-#     if(cfg.hasGUI):
-#         errors.append("config.hasGUI already exists! ")
-
-#     assert not errors, "The following errors occurred:\n{}".format(
-#                                                             "\n".join(errors))
+    assert cfg.config_file == test_input
 
 
 def test_create_config_settings(set_configdir):
@@ -75,17 +50,16 @@ def test_create_config_settings(set_configdir):
     assert cfg.settings == {"use_watcher": False}
 
 
-# File with syntax error cannot pass the format check
-# def test_createConfig_init_typo(set_configdir):
-#     """Tests if createConfig can catch actors with errors in init function.
+def test_create_config_init_typo(set_configdir):
+    """Tests if createConfig can catch actors with errors in init function.
 
-#     Asserts:
-#         If createConfig raise any errors.
-#     """
+    Asserts:
+        If createConfig raise any errors.
+    """
 
-#     cfg = config("minimal_wrong_init.yaml")
-#     res = cfg.createConfig()
-#     assert res == -1
+    cfg = Config("minimal_wrong_init.yaml")
+    res = cfg.create_config()
+    assert res == -1
 
 
 def test_create_config_wrong_import(set_configdir):
@@ -191,3 +165,9 @@ def test_config_settings_read(set_configdir):
     cfg.create_config()
 
     assert "store_size" in cfg.settings
+
+
+def test_config_bad_actor_args(set_configdir):
+    cfg = Config("bad_args.yaml")
+    res = cfg.create_config()
+    assert res == -1

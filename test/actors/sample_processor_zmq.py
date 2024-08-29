@@ -62,15 +62,14 @@ class Processor(ZmqActor):
         try:
             frame = self.q_in.get(timeout=0.05)
         except Exception as e:
-            logger.error(f"{self.name} could not get frame! At {self.frame_num}: {e}")
+            # logger.error(f"{self.name} could not get frame! At {self.frame_num}: {e}")
             pass
 
         if frame is not None and self.frame_num is not None:
             self.done = False
             self.frame = self.client.get(frame)
             avg = np.mean(self.frame[0])
-            if self.name != "Processor2":
-                logger.info(f"{self.name} got frame {frame} with value {self.frame}")
+            # logger.info(f"{self.name} got frame {frame} with value {self.frame}")
             # logger.info(f"Average: {avg}")
             self.avg_list.append(avg)
             # logger.info(f"Overall Average: {np.mean(self.avg_list)}")

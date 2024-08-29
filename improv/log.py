@@ -15,6 +15,7 @@ from improv.messaging import LogInfoMsg
 
 local_log = logging.getLogger(__name__)
 
+# TODO: need a signal handler to catch the sigterm and close the file stream
 
 def bootstrap_log_server(
     nexus_hostname, nexus_port, log_filename="global.log", logger_pull_port=None

@@ -246,7 +246,7 @@ def run_server(args):
 
 def run_list(args, printit=True):
     out_list = []
-    pattern = re.compile(r"(improv (run|client|server)|plasma_store|redis-server)")
+    pattern = re.compile(r"(improv (run|client|server)|redis-server)")
     #    mp_pattern = re.compile(r"-c from multiprocessing") # TODO is this right?
     for proc in psutil.process_iter(["pid", "name", "cmdline"]):
         if proc.info["cmdline"]:
@@ -289,6 +289,7 @@ def run_cleanup(args, headless=False):
                     p.wait(timeout=10)
                 except psutil.TimeoutExpired as e:
                     logging.warning(f"{e}: Process did not exit on time.")
+                    p.kill()
 
     else:
         if not headless:
@@ -330,7 +331,9 @@ def run(args, timeout=10):
         run_client(args)
 
     try:
-        server.wait(timeout=2)
+        wait_timeout = 60
+        print(f"Waiting {wait_timeout} seconds for Nexus to complete shutdown.")
+        server.wait(timeout=wait_timeout)
     except subprocess.TimeoutExpired:
         print("Cleaning up the hard way. May have exited dirty.")
         server.terminate()

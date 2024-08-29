@@ -11,15 +11,14 @@ class Config:
     the entire server/processing pipeline.
     """
 
-    def __init__(self, configFile):
-        if configFile is None:
-            logger.error("Need to specify a config file")
-            raise Exception
-        else:
-            # Reading config from other yaml file
-            self.configFile = configFile
+    def __init__(self, config_file):
 
-        with open(self.configFile, "r") as ymlfile:
+        self.actors = {}
+        self.connections = {}
+        self.hasGUI = False
+        self.config_file = config_file
+
+        with open(self.config_file, "r") as ymlfile:
             cfg = yaml.safe_load(ymlfile)
 
         try:
@@ -41,10 +40,6 @@ class Config:
 
         self.config = cfg
 
-        self.actors = {}
-        self.connections = {}
-        self.hasGUI = False
-
     def create_config(self):
         """Read yaml config file and create config for Nexus
         TODO: check for config file compliance, error handle it
@@ -63,10 +58,10 @@ class Config:
                 __import__(packagename, fromlist=[classname])
                 mod = import_module(packagename)
 
-                clss = getattr(mod, classname)
-                sig = signature(clss)
-                configModule = ConfigModule(name, packagename, classname, options=actor)
-                sig.bind(configModule.options)
+                actor_class = getattr(mod, classname)
+                sig = signature(actor_class)
+                config_module = ConfigModule(name, packagename, classname, options=actor)
+                sig.bind(config_module.options)
 
             except SyntaxError as e:
                 logger.error(f"Error: syntax error when initializing actor {name}: {e}")
@@ -87,37 +82,31 @@ class Config:
             except TypeError:
                 logger.error("Error: Invalid arguments passed")
                 params = ""
-                for parameter in sig.parameters:
-                    params = params + " " + parameter.name
+                for param_name, param in sig.parameters.items():
+                    params = params + ", " + param.name
                 logger.warning("Expected Parameters:" + params)
                 return -1
 
-            except Exception as e:
+            except Exception as e:  # TODO: figure out how to test this
                 logger.error(f"Error: {e}")
                 return -1
 
             if "GUI" in name:
                 logger.info(f"Config detected a GUI actor: {name}")
                 self.hasGUI = True
-                self.gui = configModule
+                self.gui = config_module
             else:
-                self.actors.update({name: configModule})
+                self.actors.update({name: config_module})
 
         for name, conn in cfg["connections"].items():
-            if name in self.connections.keys():
-                raise RepeatedConnectionsError(name)
-
             self.connections.update({name: conn})
-
-        if "datastore" in cfg.keys():
-            self.datastore = cfg["datastore"]
 
         return 0
 
     def save_actors(self):
         """Saves the actors config to a specific file."""
         wflag = True
-        saveFile = self.configFile.split(".")[0]
+        saveFile = self.config_file.split(".")[0]
         pathName = saveFile + "_actors.yaml"
 
         for a in self.actors.values():

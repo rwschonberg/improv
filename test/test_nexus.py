@@ -117,19 +117,19 @@ def test_start_nexus(sample_nex):
     ("cfg_name", "actor_list", "link_list"),
     [
         (
-            "good_config.yaml",
-            ["Acquirer", "Analysis"],
-            ["Acquirer_sig", "Analysis_sig"],
+                "good_config.yaml",
+                ["Acquirer", "Analysis"],
+                ["Acquirer_sig", "Analysis_sig"],
         ),
         (
-            "simple_graph.yaml",
-            ["Acquirer", "Analysis"],
-            ["Acquirer_sig", "Analysis_sig"],
+                "simple_graph.yaml",
+                ["Acquirer", "Analysis"],
+                ["Acquirer_sig", "Analysis_sig"],
         ),
         (
-            "complex_graph.yaml",
-            ["Acquirer", "Analysis", "InputStim"],
-            ["Acquirer_sig", "Analysis_sig", "InputStim_sig"],
+                "complex_graph.yaml",
+                ["Acquirer", "Analysis", "InputStim"],
+                ["Acquirer_sig", "Analysis_sig", "InputStim_sig"],
         ),
     ],
 )
@@ -565,7 +565,7 @@ def test_sigint_exits_cleanly(ports, setdir):
     ]
 
     server = subprocess.Popen(
-        server_opts, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        server_opts, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
 
     time.sleep(5)
@@ -597,6 +597,12 @@ def test_nexus_actor_in_port(ports, setdir, start_nexus_minimal_zmq):
     assert isinstance(out, ActorStateReplyMsg)
     assert out.actor_name == actor_state.actor_name
     assert out.status == "OK"
+
+
+def test_nexus_create_nexus_no_cfg_file(ports):
+    nex = Nexus("test")
+    with pytest.raises(Exception):
+        nex.create_nexus()
 
 
 @pytest.mark.skip(reason="Blocking comms so this won't work as-is")
