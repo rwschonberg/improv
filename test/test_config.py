@@ -6,7 +6,7 @@ import yaml
 # from importlib import import_module
 
 # from improv.config import RepeatedActorError
-from improv.config import Config, RepeatedConnectionsError
+from improv.config import Config
 from improv.utils import checks
 
 import logging

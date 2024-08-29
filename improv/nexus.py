@@ -61,9 +61,14 @@ logger.setLevel(logging.DEBUG)
 # TODO: redo docsctrings since things are pretty different now
 
 
+class ConfigFileNotProvidedException(Exception):
+    def __init__(self):
+        super().__init__("Config file not provided")
+
+
 class ActorState:
     def __init__(
-            self, actor_name, status, nexus_in_port, hostname="localhost", sig_socket=None
+        self, actor_name, status, nexus_in_port, hostname="localhost", sig_socket=None
     ):
         self.actor_name = actor_name
         self.status = status
@@ -104,14 +109,14 @@ class Nexus:
         return self.name
 
     def create_nexus(
-            self,
-            file=None,
-            use_watcher=None,
-            store_size=10_000_000,
-            control_port=0,
-            output_port=0,
-            log_server_pub_port=None,
-            actor_in_port=None,
+        self,
+        file=None,
+        use_watcher=None,
+        store_size=10_000_000,
+        control_port=0,
+        output_port=0,
+        log_server_pub_port=None,
+        actor_in_port=None,
     ):
         """Function to initialize class variables based on config file.
 
@@ -137,7 +142,7 @@ class Nexus:
 
         if file is None:
             logger.exception("Need a config file!")
-            raise Exception  # TODO
+            raise ConfigFileNotProvidedException
 
         logger.info(f"Loading configuration file {file}:")
         self.load_config(file=file)
@@ -231,8 +236,11 @@ class Nexus:
         self.allowStart = False
         self.stopped = False
 
-
-        logger.info(f"control: {cfg['control_port']}, output: {cfg['output_port']}, logging: {self.logger_pub_port}")
+        logger.info(
+            f"control: {cfg['control_port']},"
+            f" output: {cfg['output_port']},"
+            f" logging: {self.logger_pub_port}"
+        )
         return (cfg["control_port"], cfg["output_port"], self.logger_pub_port)
 
     def load_config(self, file):
@@ -511,7 +519,9 @@ class Nexus:
         loop = asyncio.get_event_loop()
         signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
         for s in signals:
-            loop.add_signal_handler(s, lambda s=s: asyncio.create_task(self.stop_polling_and_quit(s)))
+            loop.add_signal_handler(
+                s, lambda s=s: asyncio.create_task(self.stop_polling_and_quit(s))
+            )
 
         logger.info("Nexus signal handler added")
 
@@ -553,7 +563,6 @@ class Nexus:
         )
         await self.stop_polling(signal)
         logger.info("Nexus waiting for async tasks to have a chance to send")
-        tasks = asyncio.all_tasks(asyncio.get_running_loop())
         await asyncio.sleep(0)
         self.flags["quit"] = True
         self.early_exit = True
@@ -597,10 +606,10 @@ class Nexus:
         )
 
         if all(
-                [
-                    actor_state is not None and actor_state.status == Signal.ready()
-                    for actor_state in self.actor_states.values()
-                ]
+            [
+                actor_state is not None and actor_state.status == Signal.ready()
+                for actor_state in self.actor_states.values()
+            ]
         ):
             self.allowStart = True
 
@@ -622,19 +631,19 @@ class Nexus:
                     )
                 )
             if (not self.allow_setup) and all(
-                    [
-                        actor_state is not None and actor_state.status == Signal.waiting()
-                        for actor_state in self.actor_states.values()
-                    ]
+                [
+                    actor_state is not None and actor_state.status == Signal.waiting()
+                    for actor_state in self.actor_states.values()
+                ]
             ):
                 logger.info("All actors connected to Nexus. Allowing setup.")
                 self.allow_setup = True
 
             if (not self.allowStart) and all(
-                    [
-                        actor_state is not None and actor_state.status == Signal.ready()
-                        for actor_state in self.actor_states.values()
-                    ]
+                [
+                    actor_state is not None and actor_state.status == Signal.ready()
+                    for actor_state in self.actor_states.values()
+                ]
             ):
                 logger.info("All actors ready. Allowing run.")
                 self.allowStart = True
@@ -917,7 +926,7 @@ class Nexus:
             ]
             logger.info("Redis persistence directory set to {}".format(self.aof_dir))
         elif (
-                self.redis_saving_enabled
+            self.redis_saving_enabled
         ):  # just use the (possibly preexisting) default aof dir
             subprocess_command += [
                 "--appendonly",

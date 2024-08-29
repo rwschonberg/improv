@@ -12,7 +12,7 @@ import zmq
 from zmq import SocketOption
 
 from improv.messaging import ActorStateMsg, ActorStateReplyMsg
-from improv.nexus import Nexus
+from improv.nexus import Nexus, ConfigFileNotProvidedException
 from improv.store import StoreInterface
 import conftest
 
@@ -117,19 +117,19 @@ def test_start_nexus(sample_nex):
     ("cfg_name", "actor_list", "link_list"),
     [
         (
-                "good_config.yaml",
-                ["Acquirer", "Analysis"],
-                ["Acquirer_sig", "Analysis_sig"],
+            "good_config.yaml",
+            ["Acquirer", "Analysis"],
+            ["Acquirer_sig", "Analysis_sig"],
         ),
         (
-                "simple_graph.yaml",
-                ["Acquirer", "Analysis"],
-                ["Acquirer_sig", "Analysis_sig"],
+            "simple_graph.yaml",
+            ["Acquirer", "Analysis"],
+            ["Acquirer_sig", "Analysis_sig"],
         ),
         (
-                "complex_graph.yaml",
-                ["Acquirer", "Analysis", "InputStim"],
-                ["Acquirer_sig", "Analysis_sig", "InputStim_sig"],
+            "complex_graph.yaml",
+            ["Acquirer", "Analysis", "InputStim"],
+            ["Acquirer_sig", "Analysis_sig", "InputStim_sig"],
         ),
     ],
 )
@@ -601,7 +601,7 @@ def test_nexus_actor_in_port(ports, setdir, start_nexus_minimal_zmq):
 
 def test_nexus_create_nexus_no_cfg_file(ports):
     nex = Nexus("test")
-    with pytest.raises(Exception):
+    with pytest.raises(ConfigFileNotProvidedException):
         nex.create_nexus()
 
 

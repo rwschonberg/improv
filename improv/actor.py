@@ -449,7 +449,9 @@ class RunManager:
                         f"Info: {res.info}\n"
                     )
                 except Exception as e:
-                    self.improv_logger.error("Actor {} error in setup: {}".format(an, e))
+                    self.improv_logger.error(
+                        "Actor {} error in setup: {}".format(an, e)
+                    )
                     self.improv_logger.error(traceback.format_exc())
                 self.config = False
 
@@ -458,7 +460,9 @@ class RunManager:
                 signal_msg = self.q_sig.get(timeout=self.timeout)
                 signal = signal_msg.signal
                 self.q_sig.put(ActorSignalReplyMsg(an, signal, "OK", ""))
-                self.improv_logger.warning("{} received Signal {}".format(self.actorName, signal))
+                self.improv_logger.warning(
+                    "{} received Signal {}".format(self.actorName, signal)
+                )
                 if signal == Signal.run():
                     self.run = True
                     self.improv_logger.warning("Received run signal, begin running")
@@ -467,7 +471,9 @@ class RunManager:
                 elif signal == Signal.stop():
                     self.run = False
                     self.stop = True
-                    self.improv_logger.warning(f"actor {self.actorName} received stop signal")
+                    self.improv_logger.warning(
+                        f"actor {self.actorName} received stop signal"
+                    )
                 elif signal == Signal.quit():
                     self.improv_logger.warning("Received quit signal, aborting")
                     break
@@ -478,7 +484,9 @@ class RunManager:
                     self.improv_logger.warning("Received resume signal, resuming")
                     self.run = True
                 elif signal == Signal.status():
-                    self.improv_logger.info(f"Actor {self.actorName} received status request")
+                    self.improv_logger.info(
+                        f"Actor {self.actorName} received status request"
+                    )
             except KeyboardInterrupt:
                 break
             except Empty:

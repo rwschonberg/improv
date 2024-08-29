@@ -62,7 +62,7 @@ class Processor(ZmqActor):
         try:
             frame = self.q_in.get(timeout=0.05)
         except Exception as e:
-            # logger.error(f"{self.name} could not get frame! At {self.frame_num}: {e}")
+            logger.error(f"{self.name} could not get frame! At {self.frame_num}: {e}")
             pass
 
         if frame is not None and self.frame_num is not None:

@@ -12,7 +12,6 @@ class Config:
     """
 
     def __init__(self, config_file):
-
         self.actors = {}
         self.connections = {}
         self.hasGUI = False
@@ -60,7 +59,9 @@ class Config:
 
                 actor_class = getattr(mod, classname)
                 sig = signature(actor_class)
-                config_module = ConfigModule(name, packagename, classname, options=actor)
+                config_module = ConfigModule(
+                    name, packagename, classname, options=actor
+                )
                 sig.bind(config_module.options)
 
             except SyntaxError as e:

@@ -1,1 +1,2 @@
-class GeneratorActor
+class GeneratorActor:
+    pass
