@@ -50,14 +50,6 @@ logger.setLevel(logging.DEBUG)
 #  send nexus their information, and get a reply back of the broker and
 #  logger ports. long-term plan though.
 
-# TODO: links were implicitly assumed to be one connection per link.
-#  It turns out a link can be present in many connections so I need
-#  to think through exactly what this is going to mean for the design.
-#  We can subscribe to multiple topics easy enough, but we can't
-#  really pub to multiple topics at once without multiple messages.
-#  but then again, this is what we would have done anyway before with
-#  multiple downstreams connected to one upstream?
-
 # TODO: redo docsctrings since things are pretty different now
 
 
@@ -176,8 +168,7 @@ class Nexus:
         self.set_up_sockets(actor_in_port=actor_in_port)
 
         self.start_improv_services(
-            log_server_pub_port=log_server_pub_port,
-            store_size=store_size
+            log_server_pub_port=log_server_pub_port, store_size=store_size
         )
 
         self.init_config()

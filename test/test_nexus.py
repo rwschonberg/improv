@@ -553,6 +553,7 @@ def test_actor_sub(setdir, capsys, monkeypatch, ports):
 
 def test_sigint_exits_cleanly(ports, set_dir_config_parent):
     print(os.getcwd())
+    print(os.environ)
     server_opts = [
         "improv",
         "server",
@@ -565,8 +566,12 @@ def test_sigint_exits_cleanly(ports, set_dir_config_parent):
         "configs/minimal.yaml",
     ]
 
+    env = os.environ.copy()
+    env["PYTHONPATH"] += ":" + os.getcwd()
+    print(env)
+
     server = subprocess.Popen(
-        server_opts, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        server_opts, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env
     )
 
     time.sleep(5)
