@@ -551,7 +551,8 @@ def test_actor_sub(setdir, capsys, monkeypatch, ports):
     assert True
 
 
-def test_sigint_exits_cleanly(ports, setdir):
+def test_sigint_exits_cleanly(ports, set_dir_config_parent):
+    print(os.getcwd())
     server_opts = [
         "improv",
         "server",
@@ -561,7 +562,7 @@ def test_sigint_exits_cleanly(ports, setdir):
         str(ports[1]),
         "-f",
         "global.log",
-        "minimal.yaml",
+        "configs/minimal.yaml",
     ]
 
     server = subprocess.Popen(
@@ -576,8 +577,6 @@ def test_sigint_exits_cleanly(ports, setdir):
     assert True
 
 
-# TODO This is hung probably because nexus is expecting to get something back,
-# or because some protocol is bad. Need to fix this!
 def test_nexus_actor_in_port(ports, setdir, start_nexus_minimal_zmq):
     context = zmq.Context()
     nex_socket = context.socket(zmq.REQ)

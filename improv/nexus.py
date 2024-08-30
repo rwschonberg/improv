@@ -34,7 +34,7 @@ from improv.actor import Signal, Actor, LinkInfo
 from improv.config import Config
 from improv.link import Link
 
-ASYNC_DEBUG = True
+ASYNC_DEBUG = False
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -104,6 +104,12 @@ class Nexus:
         self.allow_setup = False
         self.outgoing_topics = dict()
         self.incoming_topics = dict()
+        self.comm_queues = {}
+        self.sig_queues = {}
+        self.data_queues = {}
+        self.actors = {}
+        self.flags = {}
+        self.processes = []
 
     def __str__(self):
         return self.name
@@ -167,68 +173,12 @@ class Nexus:
                 (int(cfg["actor_in_port"])) if "actor_in_port" in cfg else actor_in_port
             )
 
-        # set up socket in lieu of printing to stdout
-        self.zmq_context = zmq.Context()
-        self.zmq_context.setsockopt(SocketOption.LINGER, 0)
-        self.out_socket = self.zmq_context.socket(PUB)
-        self.out_socket.bind("tcp://*:%s" % cfg["output_port"])
-        out_port_string = self.out_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
-        cfg["output_port"] = int(out_port_string.split(":")[-1])
+        self.set_up_sockets(actor_in_port=actor_in_port)
 
-        self.in_socket = self.zmq_context.socket(REP)
-        self.in_socket.bind("tcp://*:%s" % cfg["control_port"])
-        in_port_string = self.in_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
-        cfg["control_port"] = int(in_port_string.split(":")[-1])
-
-        self.actor_in_socket = self.zmq_context.socket(REP)
-        self.actor_in_socket.bind(f"tcp://*:{actor_in_port}")
-        in_port_string = self.actor_in_socket.getsockopt_string(
-            SocketOption.LAST_ENDPOINT
+        self.start_improv_services(
+            log_server_pub_port=log_server_pub_port,
+            store_size=store_size
         )
-        self.actor_in_socket_port = int(in_port_string.split(":")[-1])
-
-        self.broker_in_socket = self.zmq_context.socket(REP)
-        self.broker_in_socket.bind("tcp://*:0")
-        broker_in_port_string = self.broker_in_socket.getsockopt_string(
-            SocketOption.LAST_ENDPOINT
-        )
-        self.broker_in_port = int(broker_in_port_string.split(":")[-1])
-
-        loop = asyncio.get_event_loop()
-        if ASYNC_DEBUG:  # this is just for debugging so doesn't have to be tested
-            loop.set_debug(True)
-
-        loop.run_until_complete(self.start_logger(log_server_pub_port))
-        logger.addHandler(log.ZmqLogHandler("localhost", self.logger_pull_port))
-        loop.run_until_complete(self.start_message_broker())
-
-        self.configure_redis_persistence()
-
-        # default size should be system-dependent
-        self._start_store_interface(store_size)
-        logger.info("Redis server started")
-
-        self.out_socket.send_string("StoreInterface started")
-
-        # connect to store and subscribe to notifications
-        logger.info("Create new store object")
-        self.store = StoreInterface(server_port_num=self.store_port)
-        logger.info(f"Redis server connected on port {self.store_port}")
-
-        self.store.subscribe()
-
-        # TODO: Better logic/flow for using watcher as an option
-        self.p_watch = None
-        if cfg["use_watcher"]:
-            self.start_watcher()
-
-        # Create dicts for reading config and creating actors
-        self.comm_queues = {}
-        self.sig_queues = {}
-        self.data_queues = {}
-        self.actors = {}
-        self.flags = {}
-        self.processes = []
 
         self.init_config()
 
@@ -796,7 +746,17 @@ class Nexus:
                         actor.actor_name, Signal.stop(), "Nexus sending stop signal"
                     )
                 )
+                msg_ready = await actor.sig_socket.poll(timeout=5)
+                if msg_ready == 0:
+                    raise TimeoutError
                 await actor.sig_socket.recv_pyobj()
+            except TimeoutError:
+                logger.info(
+                    f"Timed out sending stop message "
+                    f"to actor {actor.actor_name}. "
+                    f"Closing connection."
+                )
+                actor.sig_socket.close(linger=0)
             except Exception as e:
                 logger.info(
                     f"Unable to send stop message "
@@ -830,7 +790,17 @@ class Nexus:
                         actor.actor_name, shutdown_message, "Nexus sending quit signal"
                     )
                 )
+                msg_ready = await actor.sig_socket.poll(timeout=5)
+                if msg_ready == 0:
+                    raise TimeoutError
                 await actor.sig_socket.recv_pyobj()
+            except TimeoutError:
+                logger.info(
+                    f"Timed out sending stop message "
+                    f"to actor {actor.actor_name}. "
+                    f"Closing connection."
+                )
+                actor.sig_socket.close(linger=0)
             except Exception as e:
                 logger.info(
                     f"Unable to send shutdown message "
@@ -1181,3 +1151,59 @@ class Nexus:
 
             except Exception as e:
                 logger.exception(f"Unable to close logger: {e}")
+
+    def set_up_sockets(self, actor_in_port):
+        cfg = self.config.settings  # this could be self.settings instead
+        self.zmq_context = zmq.Context()
+        self.zmq_context.setsockopt(SocketOption.LINGER, 0)
+        self.out_socket = self.zmq_context.socket(PUB)
+        self.out_socket.bind("tcp://*:%s" % cfg["output_port"])
+        out_port_string = self.out_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
+        cfg["output_port"] = int(out_port_string.split(":")[-1])
+
+        self.in_socket = self.zmq_context.socket(REP)
+        self.in_socket.bind("tcp://*:%s" % cfg["control_port"])
+        in_port_string = self.in_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
+        cfg["control_port"] = int(in_port_string.split(":")[-1])
+
+        self.actor_in_socket = self.zmq_context.socket(REP)
+        self.actor_in_socket.bind(f"tcp://*:{actor_in_port}")
+        in_port_string = self.actor_in_socket.getsockopt_string(
+            SocketOption.LAST_ENDPOINT
+        )
+        self.actor_in_socket_port = int(in_port_string.split(":")[-1])
+
+        self.broker_in_socket = self.zmq_context.socket(REP)
+        self.broker_in_socket.bind("tcp://*:0")
+        broker_in_port_string = self.broker_in_socket.getsockopt_string(
+            SocketOption.LAST_ENDPOINT
+        )
+        self.broker_in_port = int(broker_in_port_string.split(":")[-1])
+
+    def start_improv_services(self, log_server_pub_port, store_size):
+        cfg = self.config.settings
+        loop = asyncio.get_event_loop()
+        if ASYNC_DEBUG:  # this is just for debugging so doesn't have to be tested
+            loop.set_debug(True)
+
+        loop.run_until_complete(self.start_logger(log_server_pub_port))
+        logger.addHandler(log.ZmqLogHandler("localhost", self.logger_pull_port))
+        loop.run_until_complete(self.start_message_broker())
+
+        self.configure_redis_persistence()
+
+        # default size should be system-dependent
+        self._start_store_interface(store_size)
+        logger.info("Redis server started")
+
+        self.out_socket.send_string("StoreInterface started")
+
+        # connect to store and subscribe to notifications
+        logger.info("Create new store object")
+        self.store = StoreInterface(server_port_num=self.store_port)
+        logger.info(f"Redis server connected on port {self.store_port}")
+
+        # TODO: Better logic/flow for using watcher as an option
+        self.p_watch = None
+        if cfg["use_watcher"]:
+            self.start_watcher()
