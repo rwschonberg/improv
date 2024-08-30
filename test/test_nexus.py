@@ -576,6 +576,8 @@ def test_sigint_exits_cleanly(ports, setdir):
     assert True
 
 
+# TODO This is hung probably because nexus is expecting to get something back,
+# or because some protocol is bad. Need to fix this!
 def test_nexus_actor_in_port(ports, setdir, start_nexus_minimal_zmq):
     context = zmq.Context()
     nex_socket = context.socket(zmq.REQ)
