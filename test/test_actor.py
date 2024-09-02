@@ -249,22 +249,6 @@ def test_get_links(init_actor, example_string_links):
     assert act.get_links() == {"1": "one", "2": "two", "3": "three"}
 
 
-@pytest.mark.skip(
-    reason="this is something we'll do later because\
-                    we will subclass actor w/ watcher later"
-)
-def test_put(init_actor):
-    """Tests if data keys can be put to output links.
-
-    TODO:
-        Ask Anne to take a look.
-    """
-
-    act = init_actor
-    act.put()
-    assert True
-
-
 def test_run(init_actor):
     """Tests if actor.run raises an error."""
     act = init_actor

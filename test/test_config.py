@@ -42,13 +42,12 @@ def test_create_config_settings(set_configdir):
     """Check if the default way config creates config.settings is correct.
 
     Asserts:
-        If the default setting is the dictionary {"use_watcher": "None"}
+        If the default setting is the config as a dict.
     """
 
     cfg = Config("good_config.yaml")
     cfg.create_config()
     assert cfg.settings == {
-        "use_watcher": False,
         "control_port": 5555,
         "output_port": 5556,
         "store_size": 100000000,

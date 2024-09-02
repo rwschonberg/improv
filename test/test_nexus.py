@@ -71,14 +71,12 @@ def test_argument_config_precedence(setdir, ports):
         control_port=ports[0],
         output_port=ports[1],
         store_size=11_000_000,
-        use_watcher=False,
     )
     cfg = nex.config.settings
     nex.destroy_nexus()
     assert cfg["control_port"] == ports[0]
     assert cfg["output_port"] == ports[1]
     assert cfg["store_size"] == 11_000_000
-    assert not cfg["use_watcher"]
 
 
 # delete this comment later
@@ -289,7 +287,7 @@ def test_specified_free_port(caplog, setdir, ports):
         for record in caplog.records
     )
 
-    nex.destroyNexus()
+    nex.destroy_nexus()
 
     assert any(
         "StoreInterface start successful on port 6378" in record.msg
@@ -504,31 +502,6 @@ def test_save_every_write(caplog, setdir, ports, server_port_num):
     shutil.rmtree("appendonlydir")
 
     assert fsync_schedule["appendfsync"] == "always"
-
-
-@pytest.mark.skip(reason="unfinished")
-def test_actor_sub(setdir, capsys, monkeypatch, ports):
-    monkeypatch.setattr("improv.nexus.input", lambda: "setup\n")
-    cfg_file = "sample_config.yaml"
-    nex = Nexus("test")
-
-    nex.create_nexus(
-        file=cfg_file, store_size=4000, control_port=ports[0], output_port=ports[1]
-    )
-    print("Nexus Created")
-
-    nex.start_nexus()
-    print("Nexus Started")
-    # time.sleep(5)
-    # print("Printing...")
-    # subprocess.Popen(["setup"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    # time.sleep(2)
-    # subprocess.Popen(["run"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    # time.sleep(5)
-    # subprocess.Popen(["quit"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-    nex.destroy_nexus()
-    assert True
 
 
 # def test_sigint_exits_cleanly(ports, set_dir_config_parent):

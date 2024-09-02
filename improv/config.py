@@ -34,15 +34,14 @@ class Config:
             raise TypeError
 
         self.populate_defaults()
+        self.validate_config()
 
         self.settings = self.config["settings"]
+        self.redis_config = self.config["redis_config"]
 
     def populate_defaults(self):
         if "settings" not in self.config:
             self.config["settings"] = {}
-
-        if "use_watcher" not in self.config["settings"]:
-            self.config["settings"]["use_watcher"] = False
 
         if "store_size" not in self.config["settings"]:
             self.config["settings"]["store_size"] = 100_000_000
@@ -52,6 +51,57 @@ class Config:
             self.config["settings"]["output_port"] = 5556
         if "actor_in_port" not in self.config["settings"]:
             self.config["settings"]["actor_in_port"] = 0
+
+        if "redis_config" not in self.config:
+            self.config["redis_config"] = {}
+
+        if "enable_saving" not in self.config["redis_config"]:
+            self.config["redis_config"]["enable_saving"] = None
+
+        if "aof_dirname" not in self.config["redis_config"]:
+            self.config["redis_config"]["aof_dirname"] = None
+
+        if "generate_ephemeral_aof_dirname" not in self.config["redis_config"]:
+            self.config["redis_config"]["generate_ephemeral_aof_dirname"] = False
+
+        if "fsync_frequency" not in self.config["redis_config"]:
+            self.config["redis_config"]["fsync_frequency"] = None
+
+        # enable saving automatically if the user configured a saving option
+        if self.config["redis_config"]["aof_dirname"] \
+                or self.config["redis_config"]["generate_ephemeral_aof_dirname"] \
+                and self.config["redis_config"]["enable_saving"] is None:
+            self.config["redis_config"]["enable_saving"] = True
+
+        if "port" not in self.config["redis_config"]:
+            self.config["redis_config"]["port"] = 6379
+
+    def validate_config(self):
+        if self.config["redis_config"]["aof_dirname"] and self.config["redis_config"]["generate_ephemeral_aof_dirname"]:
+            logger.error(
+                "Cannot both generate a unique dirname and use the one provided."
+            )
+            raise Exception("Cannot use unique dirname and use the one provided.")
+
+        if self.config["redis_config"]["aof_dirname"] \
+                or self.config["redis_config"]["generate_ephemeral_aof_dirname"] \
+                or self.config["redis_config"]["fsync_frequency"]:
+            if not self.config["redis_config"]["enable_saving"]:
+                logger.error(
+                    "Invalid configuration. Cannot save to disk with saving disabled."
+                )
+                raise Exception("Cannot persist to disk with saving disabled.")
+
+        if self.config["redis_config"]["fsync_frequency"] and self.config["redis_config"]["fsync_frequency"] not in [
+            "every_write",
+            "every_second",
+            "no_schedule",
+        ]:
+            logger.error("Cannot use unknown fsync frequency ", self.config["redis_config"]["fsync_frequency"])
+            raise Exception(
+                "Cannot use unknown fsync frequency ", self.config["redis_config"]["fsync_frequency"]
+            )
+
 
     def create_config(self):
         """Read yaml config file and create config for Nexus
@@ -126,57 +176,6 @@ class Config:
 
         for a in self.actors.values():
             wflag = a.save_config_modules(pathName, wflag)
-
-    def get_redis_port(self):
-        if self.redis_port_specified():
-            return self.config["redis_config"]["port"]
-        else:
-            return Config.get_default_redis_port()
-
-    def redis_port_specified(self):
-        if "redis_config" in self.config.keys():
-            return "port" in self.config["redis_config"]
-        return False
-
-    def redis_saving_enabled(self):
-        if "redis_config" in self.config.keys():
-            return (
-                self.config["redis_config"]["enable_saving"]
-                if "enable_saving" in self.config["redis_config"]
-                else None
-            )
-
-    def generate_ephemeral_aof_dirname(self):
-        if "redis_config" in self.config.keys():
-            return (
-                self.config["redis_config"]["generate_ephemeral_aof_dirname"]
-                if "generate_ephemeral_aof_dirname" in self.config["redis_config"]
-                else None
-            )
-        return False
-
-    def get_redis_aof_dirname(self):
-        if "redis_config" in self.config.keys():
-            return (
-                self.config["redis_config"]["aof_dirname"]
-                if "aof_dirname" in self.config["redis_config"]
-                else None
-            )
-        return None
-
-    def get_redis_fsync_frequency(self):
-        if "redis_config" in self.config.keys():
-            frequency = (
-                self.config["redis_config"]["fsync_frequency"]
-                if "fsync_frequency" in self.config["redis_config"]
-                else None
-            )
-
-            return frequency
-
-    @staticmethod
-    def get_default_redis_port():
-        return "6379"
 
 
 class ConfigModule:

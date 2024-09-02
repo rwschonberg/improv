@@ -114,7 +114,6 @@ class Nexus:
     def create_nexus(
         self,
         file=None,
-        use_watcher=None,
         store_size=None,
         control_port=None,
         output_port=None,
@@ -129,7 +128,6 @@ class Nexus:
 
         Args:
             file (string): Name of the config file.
-            use_watcher (bool): Whether to use watcher for the store.
             store_size (int): initial store size
             control_port (int): port number for input socket
             output_port (int): port number for output socket
@@ -154,7 +152,6 @@ class Nexus:
             logger.info(f.read())
 
         self.apply_cli_config_overrides(
-            use_watcher=use_watcher,
             store_size=store_size,
             control_port=control_port,
             output_port=output_port,
@@ -263,48 +260,17 @@ class Nexus:
         for name, link in self.data_queues.items():
             self.assign_link(name, link)
 
-        if self.config.settings["use_watcher"]:
-            watchin = []
-            for name in self.config.settings["use_watcher"]:
-                watch_link = Link(name + "_watch", name, "Watcher")
-                self.assign_link(name + ".watchout", watch_link)
-                watchin.append(watch_link)
-            self.createWatcher(watchin)
-
     def configure_redis_persistence(self):
         # invalid configs: specifying filename and using an ephemeral filename,
         # specifying that saving is off but providing either filename option
-        aof_dirname = self.config.get_redis_aof_dirname()
-        generate_unique_dirname = self.config.generate_ephemeral_aof_dirname()
-        redis_saving_enabled = self.config.redis_saving_enabled()
-        redis_fsync_frequency = self.config.get_redis_fsync_frequency()
-
-        if aof_dirname and generate_unique_dirname:
-            logger.error(
-                "Cannot both generate a unique dirname and use the one provided."
-            )
-            raise Exception("Cannot use unique dirname and use the one provided.")
-
-        if aof_dirname or generate_unique_dirname or redis_fsync_frequency:
-            if redis_saving_enabled is None:
-                redis_saving_enabled = True
-            elif not redis_saving_enabled:
-                logger.error(
-                    "Invalid configuration. Cannot save to disk with saving disabled."
-                )
-                raise Exception("Cannot persist to disk with saving disabled.")
+        aof_dirname = self.config.redis_config["aof_dirname"]
+        generate_unique_dirname = self.config.redis_config["generate_ephemeral_aof_dirname"]
+        redis_saving_enabled = self.config.redis_config["enable_saving"]
+        redis_fsync_frequency = self.config.redis_config["fsync_frequency"]
 
         self.redis_saving_enabled = redis_saving_enabled
 
-        if redis_fsync_frequency and redis_fsync_frequency not in [
-            "every_write",
-            "every_second",
-            "no_schedule",
-        ]:
-            logger.error("Cannot use unknown fsync frequency ", redis_fsync_frequency)
-            raise Exception(
-                "Cannot use unknown fsync frequency ", redis_fsync_frequency
-            )
+        # TODO: this should just go away, and we can expose the names directly in docs
 
         if redis_fsync_frequency is None:
             redis_fsync_frequency = "no_schedule"
@@ -357,12 +323,11 @@ class Nexus:
                 else:
                     ctx = get_context("fork")
                     p = ctx.Process(target=self.run_actor, name=name, args=(m,))
-                    if "Watcher" not in name:
-                        if "daemon" in self.config.actors[name].options:
-                            p.daemon = self.config.actors[name].options["daemon"]
-                            logger.info("Setting daemon for {}".format(name))
-                        else:
-                            p.daemon = True  # default behavior
+                    if "daemon" in self.config.actors[name].options:
+                        p.daemon = self.config.actors[name].options["daemon"]
+                        logger.info("Setting daemon for {}".format(name))
+                    else:
+                        p.daemon = True  # default behavior
                 self.processes.append(p)
 
         self.start()
@@ -642,12 +607,11 @@ class Nexus:
                         else:
                             ctx = get_context("fork")
                             p = ctx.Process(target=self.run_actor, name=name, args=(m,))
-                            if "Watcher" not in name:
-                                if "daemon" in actor.options:
-                                    p.daemon = actor.options["daemon"]
-                                    logger.info("Setting daemon for {}".format(name))
-                                else:
-                                    p.daemon = True
+                            if "daemon" in actor.options:
+                                p.daemon = actor.options["daemon"]
+                                logger.info("Setting daemon for {}".format(name))
+                            else:
+                                p.daemon = True
 
                     # Setting the stores for each actor to be the same
                     # TODO: test if this works for fork -- don't think it does?
@@ -822,37 +786,24 @@ class Nexus:
 
         logger.info("Setting up Redis store.")
         self.store_port = (
-            self.config.get_redis_port()
-            if self.config and self.config.redis_port_specified()
-            else Config.get_default_redis_port()
+            self.config.redis_config["port"] if self.config else 6379
         )
-        if self.config and self.config.redis_port_specified():
+        logger.info("Searching for open port starting at specified port.")
+        for attempt in range(attempts):
             logger.info(
                 "Attempting to connect to Redis on port {}".format(self.store_port)
             )
             # try with failure, incrementing port number
             self.p_StoreInterface = self.start_redis(size)
             time.sleep(1)
-            if self.p_StoreInterface.poll():
-                logger.error("Could not start Redis on specified port number.")
-                raise Exception("Could not start Redis on specified port.")
-        else:
-            logger.info("Redis port not specified. Searching for open port.")
-            for attempt in range(attempts):
-                logger.info(
-                    "Attempting to connect to Redis on port {}".format(self.store_port)
-                )
-                # try with failure, incrementing port number
-                self.p_StoreInterface = self.start_redis(size)
-                time.sleep(1)
-                if self.p_StoreInterface.poll():  # Redis could not start
-                    logger.info("Could not connect to port {}".format(self.store_port))
-                    self.store_port = str(int(self.store_port) + 1)
-                else:
-                    break
+            if self.p_StoreInterface.poll():  # Redis could not start
+                logger.info("Could not connect to port {}".format(self.store_port))
+                self.store_port = str(int(self.store_port) + 1)
             else:
-                logger.error("Could not start Redis on any tried port.")
-                raise Exception("Could not start Redis on any tried ports.")
+                break
+        else:
+            logger.error("Could not start Redis on any tried port.")
+            raise Exception("Could not start Redis on any tried ports.")
 
         logger.info(f"StoreInterface start successful on port {self.store_port}")
 
@@ -1038,20 +989,6 @@ class Nexus:
         else:
             self.actors[classname].add_link(linktype, link)
 
-    # TODO: StoreInterface access here seems wrong, need to test
-    def start_watcher(self):
-        from improv.watcher import Watcher
-
-        self.watcher = Watcher("watcher", self.create_store_interface("watcher"))
-        q_sig = Link("watcher_sig", self.name, "watcher")
-        self.watcher.setLinks(q_sig)
-        self.sig_queues.update({q_sig.name: q_sig})
-
-        self.p_watch = Process(target=self.watcher.run, name="watcher_process")
-        self.p_watch.daemon = True
-        self.p_watch.start()
-        self.processes.append(self.p_watch)
-
     async def start_logger(self, log_server_pub_port):
         self.p_logger = multiprocessing.Process(
             target=bootstrap_log_server,
@@ -1189,16 +1126,10 @@ class Nexus:
         self.store = StoreInterface(server_port_num=self.store_port)
         logger.info(f"Redis server connected on port {self.store_port}")
 
-        # TODO: Better logic/flow for using watcher as an option
-        self.p_watch = None
-        if cfg["use_watcher"]:
-            self.start_watcher()
 
     def apply_cli_config_overrides(
-        self, use_watcher, store_size, control_port, output_port, actor_in_port
+        self, store_size, control_port, output_port, actor_in_port
     ):
-        if use_watcher is not None:
-            self.config.settings["use_watcher"] = use_watcher
         if store_size is not None:
             self.config.settings["store_size"] = store_size
         if control_port is not None:
