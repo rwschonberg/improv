@@ -5,8 +5,6 @@ import os
 
 import pytest
 import logging
-import subprocess
-import signal
 import yaml
 
 from improv.nexus import Nexus, ConfigFileNotProvidedException
