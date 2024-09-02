@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+import signal
+
 import zmq
 from zmq import SocketOption
 
@@ -12,14 +16,19 @@ def bootstrap_broker(nexus_hostname, nexus_port):
 
 class PubSubBroker:
     def __init__(self, nexus_hostname, nexus_comm_port):
+        self.running = True
         self.nexus_hostname: str = nexus_hostname
         self.nexus_comm_port: int = nexus_comm_port
-        self.zmq_context: zmq.Context
-        self.nexus_socket: zmq.Socket
+        self.zmq_context: zmq.Context | None = None
+        self.nexus_socket: zmq.Socket | None = None
         self.pub_port: int
         self.sub_port: int
-        self.pub_socket: zmq.Socket
-        self.sub_socket: zmq.Socket
+        self.pub_socket: zmq.Socket | None = None
+        self.sub_socket: zmq.Socket | None = None
+
+        signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
+        for s in signals:
+            signal.signal(s, self.shutdown)
 
     def register_with_nexus(self):
         # connect to nexus
@@ -52,10 +61,28 @@ class PubSubBroker:
         return
 
     def serve(self, message_process_func):
-        while True:
+        while self.running:
             # this is more testable but may have a performance overhead
             message_process_func()
 
     def read_and_pub_message(self):  # receive and send back out
-        msg = self.sub_socket.recv_multipart()
-        self.pub_socket.send_multipart(msg)
+        msg_ready = self.sub_socket.poll(timeout=1000)
+        if msg_ready != 0:
+            msg = self.sub_socket.recv_multipart()
+            self.pub_socket.send_multipart(msg)
+
+    def shutdown(self, signum, frame):
+        print("shutting down due to signal {}".format(signum))
+        if self.sub_socket:
+            self.sub_socket.close(linger=0)
+
+        if self.pub_socket:
+            self.sub_socket.close(linger=0)
+
+        if self.nexus_socket:
+            self.sub_socket.close(linger=0)
+
+        if self.zmq_context:
+            self.zmq_context.destroy(linger=0)
+
+        self.running = False

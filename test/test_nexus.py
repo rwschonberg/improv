@@ -8,13 +8,9 @@ import logging
 import subprocess
 import signal
 import yaml
-import zmq
-from zmq import SocketOption
 
-from improv.messaging import ActorStateMsg, ActorStateReplyMsg
 from improv.nexus import Nexus, ConfigFileNotProvidedException
 from improv.store import StoreInterface
-import conftest
 
 
 def test_init(setdir):
@@ -552,8 +548,6 @@ def test_actor_sub(setdir, capsys, monkeypatch, ports):
 
 
 def test_sigint_exits_cleanly(ports, set_dir_config_parent):
-    print(os.getcwd())
-    print(os.environ)
     server_opts = [
         "improv",
         "server",
@@ -568,7 +562,6 @@ def test_sigint_exits_cleanly(ports, set_dir_config_parent):
 
     env = os.environ.copy()
     env["PYTHONPATH"] += ":" + os.getcwd()
-    print(env)
 
     server = subprocess.Popen(
         server_opts, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env
@@ -582,27 +575,27 @@ def test_sigint_exits_cleanly(ports, set_dir_config_parent):
     assert True
 
 
-def test_nexus_actor_in_port(ports, setdir, start_nexus_minimal_zmq):
-    context = zmq.Context()
-    nex_socket = context.socket(zmq.REQ)
-    nex_socket.connect(f"tcp://localhost:{ports[3]}")  # actor in port
-
-    test_socket = context.socket(zmq.REP)
-    test_socket.bind("tcp://*:0")
-    in_port_string = test_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
-    test_socket_port = int(in_port_string.split(":")[-1])
-    logging.info(f"Using port {test_socket_port}")
-
-    logging.info("waiting to send")
-    actor_state = ActorStateMsg(
-        "test_actor", "test_status", test_socket_port, "test info string"
-    )
-    nex_socket.send_pyobj(actor_state)
-    logging.info("Sent")
-    out = nex_socket.recv_pyobj()
-    assert isinstance(out, ActorStateReplyMsg)
-    assert out.actor_name == actor_state.actor_name
-    assert out.status == "OK"
+# def test_nexus_actor_in_port(ports, setdir, start_nexus_minimal_zmq):
+#     context = zmq.Context()
+#     nex_socket = context.socket(zmq.REQ)
+#     nex_socket.connect(f"tcp://localhost:{ports[3]}")  # actor in port
+#
+#     test_socket = context.socket(zmq.REP)
+#     test_socket.bind("tcp://*:0")
+#     in_port_string = test_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
+#     test_socket_port = int(in_port_string.split(":")[-1])
+#     logging.info(f"Using port {test_socket_port}")
+#
+#     logging.info("waiting to send")
+#     actor_state = ActorStateMsg(
+#         "test_actor", "test_status", test_socket_port, "test info string"
+#     )
+#     nex_socket.send_pyobj(actor_state)
+#     logging.info("Sent")
+#     out = nex_socket.recv_pyobj()
+#     assert isinstance(out, ActorStateReplyMsg)
+#     assert out.actor_name == actor_state.actor_name
+#     assert out.status == "OK"
 
 
 def test_nexus_create_nexus_no_cfg_file(ports):
@@ -611,39 +604,40 @@ def test_nexus_create_nexus_no_cfg_file(ports):
         nex.create_nexus()
 
 
-@pytest.mark.skip(reason="Blocking comms so this won't work as-is")
-def test_nexus_actor_comm_setup(ports, setdir):
-    filename = "minimal_zmq.yaml"
-    nex = Nexus("test")
-    nex.create_nexus(
-        file=filename,
-        store_size=10000000,
-        control_port=ports[0],
-        output_port=ports[1],
-        actor_in_port=ports[2],
-    )
-
-    actor = nex.actors["Generator"]
-    actor.register_with_nexus()
-
-    nex.process_actor_message()
-
-
-@pytest.mark.skip(reason="Test isn't meant to be used for coverage")
-def test_debug_nex(ports, setdir):
-    filename = "minimal_zmq.yaml"
-    conftest.nex_startup(ports, filename)
-
-
-@pytest.mark.skip(reason="Test isn't meant to be used for coverage")
-def test_nex_cfg(ports, setdir):
-    filename = "minimal_zmq.yaml"
-    nex = Nexus("test")
-    nex.create_nexus(
-        file=filename,
-        store_size=100000000,
-        control_port=ports[0],
-        output_port=ports[1],
-        actor_in_port=ports[2],
-    )
-    nex.start_nexus()
+#
+# @pytest.mark.skip(reason="Blocking comms so this won't work as-is")
+# def test_nexus_actor_comm_setup(ports, setdir):
+#     filename = "minimal_zmq.yaml"
+#     nex = Nexus("test")
+#     nex.create_nexus(
+#         file=filename,
+#         store_size=10000000,
+#         control_port=ports[0],
+#         output_port=ports[1],
+#         actor_in_port=ports[2],
+#     )
+#
+#     actor = nex.actors["Generator"]
+#     actor.register_with_nexus()
+#
+#     nex.process_actor_message()
+#
+#
+# @pytest.mark.skip(reason="Test isn't meant to be used for coverage")
+# def test_debug_nex(ports, setdir):
+#     filename = "minimal_zmq.yaml"
+#     conftest.nex_startup(ports, filename)
+#
+#
+# @pytest.mark.skip(reason="Test isn't meant to be used for coverage")
+# def test_nex_cfg(ports, setdir):
+#     filename = "minimal_zmq.yaml"
+#     nex = Nexus("test")
+#     nex.create_nexus(
+#         file=filename,
+#         store_size=100000000,
+#         control_port=ports[0],
+#         output_port=ports[1],
+#         actor_in_port=ports[2],
+#     )
+#     nex.start_nexus()

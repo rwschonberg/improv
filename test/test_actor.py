@@ -318,7 +318,7 @@ def test_actor_registration_with_nexus(ports, zmq_actor):
     nex_socket.send_pyobj(ActorStateReplyMsg("test", "OK", ""))
 
     zmq_actor.terminate()
-    zmq_actor.join(120)
+    zmq_actor.join(10)
 
 
 # TODO: register with broker test

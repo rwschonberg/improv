@@ -52,6 +52,8 @@ logger.setLevel(logging.DEBUG)
 
 # TODO: redo docsctrings since things are pretty different now
 
+# TODO: actor shutdown shouldn't use attributes in case of none-type exceptions
+
 
 class ConfigFileNotProvidedException(Exception):
     def __init__(self):
@@ -737,14 +739,14 @@ class Nexus:
                         actor.actor_name, Signal.stop(), "Nexus sending stop signal"
                     )
                 )
-                msg_ready = await actor.sig_socket.poll(timeout=5)
+                msg_ready = await actor.sig_socket.poll(timeout=1000)
                 if msg_ready == 0:
                     raise TimeoutError
                 await actor.sig_socket.recv_pyobj()
             except TimeoutError:
                 logger.info(
-                    f"Timed out sending stop message "
-                    f"to actor {actor.actor_name}. "
+                    f"Timed out waiting for reply to stop message "
+                    f"from actor {actor.actor_name}. "
                     f"Closing connection."
                 )
                 actor.sig_socket.close(linger=0)
@@ -781,14 +783,14 @@ class Nexus:
                         actor.actor_name, shutdown_message, "Nexus sending quit signal"
                     )
                 )
-                msg_ready = await actor.sig_socket.poll(timeout=5)
+                msg_ready = await actor.sig_socket.poll(timeout=1000)
                 if msg_ready == 0:
                     raise TimeoutError
                 await actor.sig_socket.recv_pyobj()
             except TimeoutError:
                 logger.info(
-                    f"Timed out sending stop message "
-                    f"to actor {actor.actor_name}. "
+                    f"Timed out waiting for reply to quit message "
+                    f"from actor {actor.actor_name}. "
                     f"Closing connection."
                 )
                 actor.sig_socket.close(linger=0)
@@ -1114,14 +1116,12 @@ class Nexus:
         if hasattr(self, "p_broker"):
             try:
                 self.p_broker.terminate()
-                try:
-                    self.p_broker.join(timeout=120)
-                    logger.info("Broker shutdown successful")
-                except subprocess.TimeoutExpired as e:
-                    logger.error(e)
+                self.p_broker.join(timeout=5)
+                if self.p_broker.exitcode is None:
                     self.p_broker.kill()
-                    logger.info("Killed broker process")
-
+                    logger.error("Killed broker process")
+                else:
+                    logger.info("Broker shutdown successful")
             except Exception as e:
                 logger.exception(f"Unable to close broker {e}")
 
@@ -1132,14 +1132,12 @@ class Nexus:
         if self.p_logger:
             try:
                 self.p_logger.terminate()
-                try:
-                    self.p_logger.join(timeout=120)
-                    logger.info("Logger shutdown successful")
-                except subprocess.TimeoutExpired as e:
-                    logger.error(e)
+                self.p_logger.join(timeout=5)
+                if self.p_logger.exitcode is None:
                     self.p_logger.kill()
-                    logger.info("Killed logger process")
-
+                    logger.error("Killed logger process")
+                else:
+                    logger.info("Logger shutdown successful")
             except Exception as e:
                 logger.exception(f"Unable to close logger: {e}")
 

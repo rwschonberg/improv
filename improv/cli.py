@@ -284,7 +284,7 @@ def run_cleanup(args, headless=False):
                         pass
             gone, alive = psutil.wait_procs(proc_list, timeout=3)
             for p in alive:
-                p.send_signal(signal.SIGINT)
+                p.terminate()
                 try:
                     p.wait(timeout=10)
                 except psutil.TimeoutExpired as e:

@@ -1,3 +1,4 @@
+import logging
 import multiprocessing
 import os
 import signal
@@ -133,6 +134,9 @@ def start_nexus_minimal_zmq(ports):
 
     p.terminate()
     p.join(WAIT_TIMEOUT)
+    if p.exitcode is None:
+        logging.exception("Timed out waiting for nexus to stop")
+        p.kill()
 
 
 # make a fixture to spool up an actor
@@ -151,6 +155,8 @@ def zmq_actor(ports):
 
     p.terminate()
     p.join(WAIT_TIMEOUT)
+    if p.exitcode is None:
+        p.kill()
 
 
 def actor_startup(actor):
