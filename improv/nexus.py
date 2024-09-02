@@ -54,6 +54,8 @@ logger.setLevel(logging.DEBUG)
 
 # TODO: actor shutdown shouldn't use attributes in case of none-type exceptions
 
+# TODO: rethink nexus shutdown semantics (getting to take quite a long time)
+
 
 class ConfigFileNotProvidedException(Exception):
     def __init__(self):

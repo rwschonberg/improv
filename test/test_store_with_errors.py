@@ -2,7 +2,6 @@ import pytest
 
 from improv.store import StoreInterface, RedisStoreInterface
 
-from pyarrow._plasma import PlasmaObjectExists
 from scipy.sparse import csc_matrix
 import numpy as np
 import redis
