@@ -277,7 +277,15 @@ def run_cleanup(args, headless=False):
                     p.wait(timeout=10)
                 except psutil.TimeoutExpired as e:
                     logging.warning(f"{e}: Process did not exit on time.")
-                    p.kill()
+                    try:
+                        p.kill()
+                    except psutil.NoSuchProcess as e:
+                        logging.warning(
+                            f"{e}: Process exited after wait timeout"
+                            f" but before kill signal attempted."
+                        )
+                        # this happens sometimes because Nexus uses gracious
+                        # timeout periods.
                 except psutil.NoSuchProcess as e:
                     logging.warning(
                         f"{e}: Process exited after wait timeout"

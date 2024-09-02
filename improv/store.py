@@ -4,6 +4,7 @@ import uuid
 import pickle
 import logging
 import traceback
+import zlib
 
 from redis import Redis
 from redis.retry import Retry
@@ -11,6 +12,8 @@ from redis.backoff import ConstantBackoff
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
 
 REDIS_GLOBAL_TOPIC = "global_topic"
+
+ZLIB_COMPRESSION_LEVEL = -1
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -36,11 +39,18 @@ class StoreInterface:
 
 
 class RedisStoreInterface(StoreInterface):
-    def __init__(self, name="default", server_port_num=6379, hostname="localhost"):
+    def __init__(
+        self,
+        name="default",
+        server_port_num=6379,
+        hostname="localhost",
+        compression_level=ZLIB_COMPRESSION_LEVEL,
+    ):
         self.name = name
         self.server_port_num = server_port_num
         self.hostname = hostname
         self.client = self.connect_to_server()
+        self.compression_level = compression_level
 
     def connect_to_server(self):
         # TODO this should scan for available ports, but only if configured to do so.
@@ -107,8 +117,11 @@ class RedisStoreInterface(StoreInterface):
             # TODO key; not sure it's worth the network overhead to check every
             # TODO key twice every time. we still need a better solution for
             # TODO this, but it will work now singlethreaded most of the time.
+            data = zlib.compress(
+                pickle.dumps(object, protocol=5), level=self.compression_level
+            )
 
-            self.client.set(object_key, pickle.dumps(object, protocol=5), nx=True)
+            self.client.set(object_key, data, nx=True)
         except Exception:
             logger.error("Could not store object {}".format(object_key))
             logger.error(traceback.format_exc())
@@ -131,7 +144,7 @@ class RedisStoreInterface(StoreInterface):
         object_value = self.client.get(object_key)
         if object_value:
             # buffers would also go here to force out-of-band deserialization
-            return pickle.loads(object_value)
+            return pickle.loads(zlib.decompress(object_value))
 
         logger.warning("Object {} cannot be found.".format(object_key))
         raise ObjectNotFoundError
