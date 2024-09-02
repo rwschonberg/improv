@@ -78,17 +78,6 @@ def test_redis_put_one(setup_store, server_port_num):
     assert 1 == store.get(key)
 
 
-@pytest.mark.skip(reason="Error not being raised")
-def test_put_twice(setup_store):
-    # store = StoreInterface()
-    with pytest.raises(PlasmaObjectExists) as e:
-        # id = store.put(2, "two")
-        # id2 = store.put(2, "two")
-        pass
-        # Check that the exception thrown is an PlasmaObjectExists
-    assert e.value.message == "Object already exists. Meant to call replace?"
-
-
 def test_getOne(setup_store, server_port_num):
     store = StoreInterface(server_port_num=server_port_num)
     id = store.put(1)

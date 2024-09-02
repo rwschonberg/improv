@@ -65,11 +65,14 @@ class PubSubBroker:
             # this is more testable but may have a performance overhead
             message_process_func()
 
-    def read_and_pub_message(self):  # receive and send back out
-        msg_ready = self.sub_socket.poll(timeout=1000)
-        if msg_ready != 0:
-            msg = self.sub_socket.recv_multipart()
-            self.pub_socket.send_multipart(msg)
+    def read_and_pub_message(self):
+        try:
+            msg_ready = self.sub_socket.poll(timeout=5)
+            if msg_ready != 0:
+                msg = self.sub_socket.recv_multipart()
+                self.pub_socket.send_multipart(msg)
+        except zmq.error.ZMQError:
+            self.running = False
 
     def shutdown(self, signum, frame):
         print("shutting down due to signal {}".format(signum))

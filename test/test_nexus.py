@@ -7,6 +7,7 @@ import pytest
 import logging
 import yaml
 
+from improv.config import CannotCreateConfigException
 from improv.nexus import Nexus, ConfigFileNotProvidedException
 from improv.store import StoreInterface
 
@@ -52,7 +53,6 @@ def test_config_logged(setdir, ports, caplog):
 
 def test_load_config(sample_nex):
     nex = sample_nex
-    nex.load_config("good_config.yaml")
     assert set(nex.comm_queues.keys()) == {"GUI_comm"}
     assert any(
         [
@@ -181,7 +181,7 @@ def test_cyclic_graph(setdir, ports):
 
 def test_blank_cfg(setdir, caplog, ports):
     nex = Nexus("test")
-    with pytest.raises(TypeError):
+    with pytest.raises(CannotCreateConfigException):
         nex.create_nexus(
             file="blank_file.yaml", control_port=ports[0], output_port=ports[1]
         )

@@ -77,6 +77,7 @@ class Nexus:
     """Main server class for handling objects in improv"""
 
     def __init__(self, name="Server"):
+        self.actor_in_port: int | None = None
         self.actor_in_socket_port: int | None = None
         self.actor_in_socket: zmq.Socket | None = None
         self.in_socket: zmq.Socket | None = None
@@ -147,29 +148,23 @@ class Nexus:
             raise ConfigFileNotProvidedException
 
         logger.info(f"Loading configuration file {file}:")
-        self.load_config(file=file)
+        self.config = Config(config_file=file)
+
         with open(file, "r") as f:  # write config file to log
             logger.info(f.read())
 
         # set config options loaded from file
         # TODO: fix arg/config parsing
-        cfg = self.config.settings
-        if "use_watcher" not in cfg:
-            cfg["use_watcher"] = use_watcher
-        if "store_size" not in cfg:
-            cfg["store_size"] = store_size
-        if "control_port" not in cfg or control_port != 0:
-            cfg["control_port"] = control_port
-        if "output_port" not in cfg or output_port != 0:
-            cfg["output_port"] = output_port
-        if "actor_in_port" not in cfg and actor_in_port is None:
-            actor_in_port = 0
-        else:
-            actor_in_port = (
-                (int(cfg["actor_in_port"])) if "actor_in_port" in cfg else actor_in_port
-            )
 
-        self.set_up_sockets(actor_in_port=actor_in_port)
+        self.apply_cli_config_overrides(
+            use_watcher=use_watcher,
+            store_size=store_size,
+            control_port=control_port,
+            output_port=output_port,
+            actor_in_port=actor_in_port,
+        )
+
+        self.set_up_sockets(actor_in_port=self.actor_in_port)
 
         self.start_improv_services(
             log_server_pub_port=log_server_pub_port, store_size=store_size
@@ -182,17 +177,15 @@ class Nexus:
         self.stopped = False
 
         logger.info(
-            f"control: {cfg['control_port']},"
-            f" output: {cfg['output_port']},"
+            f"control: {self.config.settings['control_port']},"
+            f" output: {self.config.settings['output_port']},"
             f" logging: {self.logger_pub_port}"
         )
-        return (cfg["control_port"], cfg["output_port"], self.logger_pub_port)
-
-    def load_config(self, file):
-        """Load configuration file.
-        file: a YAML configuration file name
-        """
-        self.config = Config(config_file=file)
+        return (
+            self.config.settings["control_port"],
+            self.config.settings["output_port"],
+            self.logger_pub_port,
+        )
 
     def init_config(self):
         """For each connection:
@@ -1118,12 +1111,16 @@ class Nexus:
         if hasattr(self, "p_broker"):
             try:
                 self.p_broker.terminate()
-                self.p_broker.join(timeout=5)
+                self.p_broker.join(timeout=60)
                 if self.p_broker.exitcode is None:
                     self.p_broker.kill()
                     logger.error("Killed broker process")
                 else:
-                    logger.info("Broker shutdown successful")
+                    logger.info(
+                        "Broker shutdown successful with exit code {}".format(
+                            self.p_broker.exitcode
+                        )
+                    )
             except Exception as e:
                 logger.exception(f"Unable to close broker {e}")
 
@@ -1198,3 +1195,23 @@ class Nexus:
         self.p_watch = None
         if cfg["use_watcher"]:
             self.start_watcher()
+
+    def apply_cli_config_overrides(
+        self, use_watcher, store_size, control_port, output_port, actor_in_port
+    ):
+        if "use_watcher" not in self.config.settings:
+            self.config.settings["use_watcher"] = use_watcher
+        if "store_size" not in self.config.settings:
+            self.config.settings["store_size"] = store_size
+        if "control_port" not in self.config.settings or control_port != 0:
+            self.config.settings["control_port"] = control_port
+        if "output_port" not in self.config.settings or output_port != 0:
+            self.config.settings["output_port"] = output_port
+        if "actor_in_port" not in self.config.settings and actor_in_port is None:
+            self.actor_in_port = 0
+        else:
+            self.actor_in_port = (
+                (int(self.config.settings["actor_in_port"]))
+                if "actor_in_port" in self.config.settings
+                else actor_in_port
+            )

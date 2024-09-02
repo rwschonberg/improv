@@ -6,7 +6,7 @@ import yaml
 # from importlib import import_module
 
 # from improv.config import RepeatedActorError
-from improv.config import Config
+from improv.config import Config, CannotCreateConfigException
 from improv.utils import checks
 
 import logging
@@ -123,7 +123,7 @@ def test_create_config_attribute_error(set_configdir):
 def test_create_config_blank_file(set_configdir):
     """Tests if a blank config file raises an error."""
 
-    with pytest.raises(TypeError):
+    with pytest.raises(CannotCreateConfigException):
         Config("blank_file.yaml")
 
 

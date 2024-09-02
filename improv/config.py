@@ -6,6 +6,11 @@ from importlib import import_module
 logger = logging.getLogger(__name__)
 
 
+class CannotCreateConfigException(Exception):
+    def __init__(self):
+        super().__init__("Cannot create config")
+
+
 class Config:
     """Handles configuration and logs of configs for
     the entire server/processing pipeline.
@@ -18,26 +23,26 @@ class Config:
         self.config_file = config_file
 
         with open(self.config_file, "r") as ymlfile:
-            cfg = yaml.safe_load(ymlfile)
+            self.config = yaml.safe_load(ymlfile)
 
-        try:
-            if "settings" in cfg:
-                self.settings = cfg["settings"]
-            else:
-                self.settings = {}
+        if self.config is None:
+            logger.error("The config file is empty")
+            raise CannotCreateConfigException
 
-            if "use_watcher" not in self.settings:
-                self.settings["use_watcher"] = False
-
-        except TypeError:
-            if cfg is None:
-                logger.error("Error: The config file is empty")
-
-        if type(cfg) is not dict:
+        if type(self.config) is not dict:
             logger.error("Error: The config file is not in dictionary format")
             raise TypeError
 
-        self.config = cfg
+        self.populate_defaults()
+
+        self.settings = self.config["settings"]
+
+    def populate_defaults(self):
+        if "settings" not in self.config:
+            self.config["settings"] = {}
+
+        if "use_watcher" not in self.config["settings"]:
+            self.config["settings"]["use_watcher"] = False
 
     def create_config(self):
         """Read yaml config file and create config for Nexus
@@ -112,9 +117,6 @@ class Config:
 
         for a in self.actors.values():
             wflag = a.save_config_modules(pathName, wflag)
-
-    def use_plasma(self):
-        return "plasma_config" in self.config.keys()
 
     def get_redis_port(self):
         if self.redis_port_specified():
