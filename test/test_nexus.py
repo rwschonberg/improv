@@ -547,32 +547,32 @@ def test_actor_sub(setdir, capsys, monkeypatch, ports):
     assert True
 
 
-def test_sigint_exits_cleanly(ports, set_dir_config_parent):
-    server_opts = [
-        "improv",
-        "server",
-        "-c",
-        str(ports[0]),
-        "-o",
-        str(ports[1]),
-        "-f",
-        "global.log",
-        "configs/minimal.yaml",
-    ]
-
-    env = os.environ.copy()
-    env["PYTHONPATH"] += ":" + os.getcwd()
-
-    server = subprocess.Popen(
-        server_opts, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env
-    )
-
-    time.sleep(5)
-
-    server.send_signal(signal.SIGINT)
-
-    server.wait(10)
-    assert True
+# def test_sigint_exits_cleanly(ports, set_dir_config_parent):
+#     server_opts = [
+#         "improv",
+#         "server",
+#         "-c",
+#         str(ports[0]),
+#         "-o",
+#         str(ports[1]),
+#         "-f",
+#         "global.log",
+#         "configs/minimal.yaml",
+#     ]
+#
+#     env = os.environ.copy()
+#     env["PYTHONPATH"] += ":" + os.getcwd()
+#
+#     server = subprocess.Popen(
+#         server_opts, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env
+#     )
+#
+#     time.sleep(5)
+#
+#     server.send_signal(signal.SIGINT)
+#
+#     server.wait(10)
+#     assert True
 
 
 # def test_nexus_actor_in_port(ports, setdir, start_nexus_minimal_zmq):

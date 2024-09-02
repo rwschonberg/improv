@@ -14,11 +14,6 @@ from improv.messaging import LogInfoMsg
 local_log = logging.getLogger(__name__)
 
 
-class SocketPutNowaitWrapper(zmq.Socket):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-
 def bootstrap_log_server(
     nexus_hostname, nexus_port, log_filename="global.log", logger_pull_port=None
 ):
