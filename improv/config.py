@@ -44,6 +44,15 @@ class Config:
         if "use_watcher" not in self.config["settings"]:
             self.config["settings"]["use_watcher"] = False
 
+        if "store_size" not in self.config["settings"]:
+            self.config["settings"]["store_size"] = 100_000_000
+        if "control_port" not in self.config["settings"]:
+            self.config["settings"]["control_port"] = 5555
+        if "output_port" not in self.config["settings"]:
+            self.config["settings"]["output_port"] = 5556
+        if "actor_in_port" not in self.config["settings"]:
+            self.config["settings"]["actor_in_port"] = 0
+
     def create_config(self):
         """Read yaml config file and create config for Nexus
         TODO: check for config file compliance, error handle it

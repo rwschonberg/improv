@@ -47,7 +47,13 @@ def test_create_config_settings(set_configdir):
 
     cfg = Config("good_config.yaml")
     cfg.create_config()
-    assert cfg.settings == {"use_watcher": False}
+    assert cfg.settings == {
+        "use_watcher": False,
+        "control_port": 5555,
+        "output_port": 5556,
+        "store_size": 100000000,
+        "actor_in_port": 0,
+    }
 
 
 def test_create_config_init_typo(set_configdir):

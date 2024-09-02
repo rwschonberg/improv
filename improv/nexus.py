@@ -115,9 +115,9 @@ class Nexus:
         self,
         file=None,
         use_watcher=None,
-        store_size=10_000_000,
-        control_port=0,
-        output_port=0,
+        store_size=None,
+        control_port=None,
+        output_port=None,
         log_server_pub_port=None,
         actor_in_port=None,
     ):
@@ -153,9 +153,6 @@ class Nexus:
         with open(file, "r") as f:  # write config file to log
             logger.info(f.read())
 
-        # set config options loaded from file
-        # TODO: fix arg/config parsing
-
         self.apply_cli_config_overrides(
             use_watcher=use_watcher,
             store_size=store_size,
@@ -164,10 +161,11 @@ class Nexus:
             actor_in_port=actor_in_port,
         )
 
-        self.set_up_sockets(actor_in_port=self.actor_in_port)
+        self.set_up_sockets(actor_in_port=self.config.settings["actor_in_port"])
 
         self.start_improv_services(
-            log_server_pub_port=log_server_pub_port, store_size=store_size
+            log_server_pub_port=log_server_pub_port,
+            store_size=self.config.settings["store_size"],
         )
 
         self.init_config()
@@ -1199,19 +1197,13 @@ class Nexus:
     def apply_cli_config_overrides(
         self, use_watcher, store_size, control_port, output_port, actor_in_port
     ):
-        if "use_watcher" not in self.config.settings:
+        if use_watcher is not None:
             self.config.settings["use_watcher"] = use_watcher
-        if "store_size" not in self.config.settings:
+        if store_size is not None:
             self.config.settings["store_size"] = store_size
-        if "control_port" not in self.config.settings or control_port != 0:
+        if control_port is not None:
             self.config.settings["control_port"] = control_port
-        if "output_port" not in self.config.settings or output_port != 0:
+        if output_port is not None:
             self.config.settings["output_port"] = output_port
-        if "actor_in_port" not in self.config.settings and actor_in_port is None:
-            self.actor_in_port = 0
-        else:
-            self.actor_in_port = (
-                (int(self.config.settings["actor_in_port"]))
-                if "actor_in_port" in self.config.settings
-                else actor_in_port
-            )
+        if actor_in_port is not None:
+            self.config.settings["actor_in_port"] = actor_in_port

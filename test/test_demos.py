@@ -5,6 +5,8 @@ import os
 import asyncio
 import subprocess
 
+from improv.nexus import Nexus
+
 from improv import cli
 
 import improv.tui as tui

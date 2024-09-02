@@ -12,9 +12,6 @@ from improv.tui import TUI
 from improv.nexus import Nexus
 
 MAX_PORT = 2**16 - 1
-DEFAULT_CONTROL_PORT = "0"
-DEFAULT_OUTPUT_PORT = "0"
-DEFAULT_LOGGING_PORT = "0"
 
 
 def file_exists(fname):
@@ -78,21 +75,18 @@ def parse_cli_args(args):
         "-c",
         "--control-port",
         type=is_valid_port,
-        default=DEFAULT_CONTROL_PORT,
         help="local port on which control are sent to/from server",
     )
     run_parser.add_argument(
         "-o",
         "--output-port",
         type=is_valid_port,
-        default=DEFAULT_OUTPUT_PORT,
         help="local port on which server output messages are broadcast",
     )
     run_parser.add_argument(
         "-l",
         "--logging-port",
         type=is_valid_port,
-        default=DEFAULT_LOGGING_PORT,
         help="local port on which logging messages are broadcast",
     )
     run_parser.add_argument(
@@ -119,21 +113,18 @@ def parse_cli_args(args):
         "-c",
         "--control-port",
         type=is_valid_ip_addr,
-        default=DEFAULT_CONTROL_PORT,
         help="address on which control signals are sent to the server",
     )
     client_parser.add_argument(
         "-s",
         "--server-port",
         type=is_valid_ip_addr,
-        default=DEFAULT_OUTPUT_PORT,
         help="address on which messages from the server are received",
     )
     client_parser.add_argument(
         "-l",
         "--logging-port",
         type=is_valid_ip_addr,
-        default=DEFAULT_LOGGING_PORT,
         help="address on which logging messages are broadcast",
     )
     client_parser.set_defaults(func=run_client)
@@ -145,21 +136,18 @@ def parse_cli_args(args):
         "-c",
         "--control-port",
         type=is_valid_port,
-        default=DEFAULT_CONTROL_PORT,
         help="local port on which control signals are received",
     )
     server_parser.add_argument(
         "-o",
         "--output-port",
         type=is_valid_port,
-        default=DEFAULT_OUTPUT_PORT,
         help="local port on which output messages are broadcast",
     )
     server_parser.add_argument(
         "-l",
         "--logging-port",
         type=is_valid_port,
-        default=DEFAULT_LOGGING_PORT,
         help="local port on which logging messages are broadcast",
     )
     server_parser.add_argument(
@@ -313,17 +301,26 @@ def run(args, timeout=10):
     server_opts = [
         "improv",
         "server",
-        "-c",
-        str(args.control_port),
-        "-o",
-        str(args.output_port),
-        "-l",
-        str(args.logging_port),
         "-f",
         args.logfile,
     ]
+
+    if args.control_port:
+        server_opts.append("-c")
+        server_opts.append(str(args.control_port))
+
+    if args.output_port:
+        server_opts.append("-o")
+        server_opts.append(str(args.output_port))
+
+    if args.logging_port:
+        server_opts.append("-l")
+        server_opts.append(str(args.logging_port))
+
     server_opts.extend(apath_opts)
     server_opts.append(args.configfile)
+
+    print(" ".join(server_opts))
 
     with open(args.logfile, mode="a+") as logfile:
         server = subprocess.Popen(server_opts, stdout=logfile, stderr=logfile)

@@ -5,7 +5,6 @@ import os
 
 import pytest
 import logging
-import yaml
 
 from improv.config import CannotCreateConfigException
 from improv.nexus import Nexus, ConfigFileNotProvidedException
@@ -72,27 +71,14 @@ def test_argument_config_precedence(setdir, ports):
         control_port=ports[0],
         output_port=ports[1],
         store_size=11_000_000,
-        use_watcher=True,
+        use_watcher=False,
     )
     cfg = nex.config.settings
     nex.destroy_nexus()
     assert cfg["control_port"] == ports[0]
     assert cfg["output_port"] == ports[1]
-    assert cfg["store_size"] == 20_000_000
+    assert cfg["store_size"] == 11_000_000
     assert not cfg["use_watcher"]
-
-
-def test_settings_override_random_ports(setdir, ports):
-    config_file = "minimal_with_settings.yaml"
-    nex = Nexus("test")
-    with open(config_file, "r") as ymlfile:
-        cfg = yaml.safe_load(ymlfile)["settings"]
-    control_port, output_port, log_server_port = nex.create_nexus(
-        file=config_file, control_port=0, output_port=0
-    )
-    nex.destroy_nexus()
-    assert control_port == cfg["control_port"]
-    assert output_port == cfg["output_port"]
 
 
 # delete this comment later
