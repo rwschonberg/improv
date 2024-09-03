@@ -52,6 +52,10 @@ def test_create_config_settings(set_configdir):
         "output_port": 5556,
         "store_size": 100000000,
         "actor_in_port": 0,
+        "harvest_data_to_disk": False,
+        "harvester_fsync_frequency": None,
+        "harvester_output_file": None,
+        "use_ephemeral_harvester_filename": False,
     }
 
 

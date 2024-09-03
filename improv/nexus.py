@@ -56,6 +56,8 @@ logger.setLevel(logging.DEBUG)
 
 # TODO: rethink nexus shutdown semantics (getting to take quite a long time)
 
+# TODO: socket setup can fail - need to check it
+
 
 class ConfigFileNotProvidedException(Exception):
     def __init__(self):
@@ -264,7 +266,9 @@ class Nexus:
         # invalid configs: specifying filename and using an ephemeral filename,
         # specifying that saving is off but providing either filename option
         aof_dirname = self.config.redis_config["aof_dirname"]
-        generate_unique_dirname = self.config.redis_config["generate_ephemeral_aof_dirname"]
+        generate_unique_dirname = self.config.redis_config[
+            "generate_ephemeral_aof_dirname"
+        ]
         redis_saving_enabled = self.config.redis_config["enable_saving"]
         redis_fsync_frequency = self.config.redis_config["fsync_frequency"]
 
@@ -674,9 +678,6 @@ class Nexus:
         if self.config.hasGUI:
             self.processes.append(self.p_GUI)
 
-        if self.p_watch:
-            self.processes.append(self.p_watch)
-
         for p in self.processes:
             p.terminate()
             p.join()
@@ -785,9 +786,7 @@ class Nexus:
             raise RuntimeError("Server size needs to be specified")
 
         logger.info("Setting up Redis store.")
-        self.store_port = (
-            self.config.redis_config["port"] if self.config else 6379
-        )
+        self.store_port = self.config.redis_config["port"] if self.config else 6379
         logger.info("Searching for open port starting at specified port.")
         for attempt in range(attempts):
             logger.info(
@@ -1104,7 +1103,6 @@ class Nexus:
         self.broker_in_port = int(broker_in_port_string.split(":")[-1])
 
     def start_improv_services(self, log_server_pub_port, store_size):
-        cfg = self.config.settings
         loop = asyncio.get_event_loop()
         if ASYNC_DEBUG:  # this is just for debugging so doesn't have to be tested
             loop.set_debug(True)
@@ -1125,7 +1123,6 @@ class Nexus:
         logger.info("Create new store object")
         self.store = StoreInterface(server_port_num=self.store_port)
         logger.info(f"Redis server connected on port {self.store_port}")
-
 
     def apply_cli_config_overrides(
         self, store_size, control_port, output_port, actor_in_port

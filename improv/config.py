@@ -40,68 +40,13 @@ class Config:
         self.redis_config = self.config["redis_config"]
 
     def populate_defaults(self):
-        if "settings" not in self.config:
-            self.config["settings"] = {}
+        self.populate_settings_defaults()
 
-        if "store_size" not in self.config["settings"]:
-            self.config["settings"]["store_size"] = 100_000_000
-        if "control_port" not in self.config["settings"]:
-            self.config["settings"]["control_port"] = 5555
-        if "output_port" not in self.config["settings"]:
-            self.config["settings"]["output_port"] = 5556
-        if "actor_in_port" not in self.config["settings"]:
-            self.config["settings"]["actor_in_port"] = 0
-
-        if "redis_config" not in self.config:
-            self.config["redis_config"] = {}
-
-        if "enable_saving" not in self.config["redis_config"]:
-            self.config["redis_config"]["enable_saving"] = None
-
-        if "aof_dirname" not in self.config["redis_config"]:
-            self.config["redis_config"]["aof_dirname"] = None
-
-        if "generate_ephemeral_aof_dirname" not in self.config["redis_config"]:
-            self.config["redis_config"]["generate_ephemeral_aof_dirname"] = False
-
-        if "fsync_frequency" not in self.config["redis_config"]:
-            self.config["redis_config"]["fsync_frequency"] = None
-
-        # enable saving automatically if the user configured a saving option
-        if self.config["redis_config"]["aof_dirname"] \
-                or self.config["redis_config"]["generate_ephemeral_aof_dirname"] \
-                and self.config["redis_config"]["enable_saving"] is None:
-            self.config["redis_config"]["enable_saving"] = True
-
-        if "port" not in self.config["redis_config"]:
-            self.config["redis_config"]["port"] = 6379
+        self.popoulate_redis_defaults()
 
     def validate_config(self):
-        if self.config["redis_config"]["aof_dirname"] and self.config["redis_config"]["generate_ephemeral_aof_dirname"]:
-            logger.error(
-                "Cannot both generate a unique dirname and use the one provided."
-            )
-            raise Exception("Cannot use unique dirname and use the one provided.")
-
-        if self.config["redis_config"]["aof_dirname"] \
-                or self.config["redis_config"]["generate_ephemeral_aof_dirname"] \
-                or self.config["redis_config"]["fsync_frequency"]:
-            if not self.config["redis_config"]["enable_saving"]:
-                logger.error(
-                    "Invalid configuration. Cannot save to disk with saving disabled."
-                )
-                raise Exception("Cannot persist to disk with saving disabled.")
-
-        if self.config["redis_config"]["fsync_frequency"] and self.config["redis_config"]["fsync_frequency"] not in [
-            "every_write",
-            "every_second",
-            "no_schedule",
-        ]:
-            logger.error("Cannot use unknown fsync frequency ", self.config["redis_config"]["fsync_frequency"])
-            raise Exception(
-                "Cannot use unknown fsync frequency ", self.config["redis_config"]["fsync_frequency"]
-            )
-
+        self.validate_redis_config()
+        self.validate_harvester_config()
 
     def create_config(self):
         """Read yaml config file and create config for Nexus
@@ -176,6 +121,133 @@ class Config:
 
         for a in self.actors.values():
             wflag = a.save_config_modules(pathName, wflag)
+
+    def populate_settings_defaults(self):
+        if "settings" not in self.config:
+            self.config["settings"] = {}
+
+        if "store_size" not in self.config["settings"]:
+            self.config["settings"]["store_size"] = 100_000_000
+        if "control_port" not in self.config["settings"]:
+            self.config["settings"]["control_port"] = 5555
+        if "output_port" not in self.config["settings"]:
+            self.config["settings"]["output_port"] = 5556
+        if "actor_in_port" not in self.config["settings"]:
+            self.config["settings"]["actor_in_port"] = 0
+        if "harvest_data_to_disk" not in self.config["settings"]:
+            self.config["settings"]["harvest_data_to_disk"] = False
+        if "harvester_output_file" not in self.config["settings"]:
+            self.config["settings"]["harvester_output_file"] = None
+        if "use_ephemeral_harvester_filename" not in self.config["settings"]:
+            self.config["settings"]["use_ephemeral_harvester_filename"] = False
+        if "harvester_fsync_frequency" not in self.config["settings"]:
+            self.config["settings"]["harvester_fsync_frequency"] = None
+
+        # enable saving automatically if the user configured a saving option
+        if (
+            self.config["settings"]["harvester_output_file"]
+            or self.config["settings"]["use_ephemeral_harvester_filename"]
+            and self.config["settings"]["harvest_data_to_disk"] is None
+        ):
+            self.config["settings"]["harvest_data_to_disk"] = True
+
+    def popoulate_redis_defaults(self):
+        if "redis_config" not in self.config:
+            self.config["redis_config"] = {}
+
+        if "enable_saving" not in self.config["redis_config"]:
+            self.config["redis_config"]["enable_saving"] = None
+        if "aof_dirname" not in self.config["redis_config"]:
+            self.config["redis_config"]["aof_dirname"] = None
+        if "generate_ephemeral_aof_dirname" not in self.config["redis_config"]:
+            self.config["redis_config"]["generate_ephemeral_aof_dirname"] = False
+        if "fsync_frequency" not in self.config["redis_config"]:
+            self.config["redis_config"]["fsync_frequency"] = None
+
+        # enable saving automatically if the user configured a saving option
+        if (
+            self.config["redis_config"]["aof_dirname"]
+            or self.config["redis_config"]["generate_ephemeral_aof_dirname"]
+            and self.config["redis_config"]["enable_saving"] is None
+        ):
+            self.config["redis_config"]["enable_saving"] = True
+
+        if "port" not in self.config["redis_config"]:
+            self.config["redis_config"]["port"] = 6379
+
+    def validate_redis_config(self):
+        if (
+            self.config["redis_config"]["aof_dirname"]
+            and self.config["redis_config"]["generate_ephemeral_aof_dirname"]
+        ):
+            logger.error(
+                "Cannot both generate a unique dirname and use the one provided."
+            )
+            raise Exception("Cannot use unique dirname and use the one provided.")
+
+        if (
+            self.config["redis_config"]["aof_dirname"]
+            or self.config["redis_config"]["generate_ephemeral_aof_dirname"]
+            or self.config["redis_config"]["fsync_frequency"]
+        ):
+            if not self.config["redis_config"]["enable_saving"]:
+                logger.error(
+                    "Invalid configuration. Cannot save to disk with saving disabled."
+                )
+                raise Exception("Cannot persist to disk with saving disabled.")
+
+        if self.config["redis_config"]["fsync_frequency"] and self.config[
+            "redis_config"
+        ]["fsync_frequency"] not in [
+            "every_write",
+            "every_second",
+            "no_schedule",
+        ]:
+            logger.error(
+                "Cannot use unknown fsync frequency ",
+                self.config["redis_config"]["fsync_frequency"],
+            )
+            raise Exception(
+                "Cannot use unknown fsync frequency ",
+                self.config["redis_config"]["fsync_frequency"],
+            )
+
+    def validate_harvester_config(self):
+        if (
+            self.config["settings"]["harvester_output_file"]
+            and self.config["settings"]["use_ephemeral_harvester_filename"]
+        ):
+            logger.error(
+                "Cannot both generate a unique filename and use the one provided."
+            )
+            raise Exception("Cannot use unique filename and use the one provided.")
+
+        if (
+            self.config["settings"]["harvester_output_file"]
+            or self.config["settings"]["use_ephemeral_harvester_filename"]
+            or self.config["settings"]["harvester_fsync_frequency"]
+        ):
+            if not self.config["settings"]["harvest_data_to_disk"]:
+                logger.error(
+                    "Invalid configuration. Cannot save to disk with saving disabled."
+                )
+                raise Exception("Cannot persist to disk with saving disabled.")
+
+        if self.config["settings"]["harvester_fsync_frequency"] and self.config[
+            "settings"
+        ]["harvester_fsync_frequency"] not in [
+            "every_write",
+            "every_second",
+            "no_schedule",
+        ]:
+            logger.error(
+                "Cannot use unknown harvester fsync frequency ",
+                self.config["settings"]["harvester_fsync_frequency"],
+            )
+            raise Exception(
+                "Cannot use unknown fsync frequency ",
+                self.config["settings"]["harvester_fsync_frequency"],
+            )
 
 
 class ConfigModule:

@@ -3,7 +3,7 @@ import psutil
 import pytest
 import zmq
 
-from improv.link import Link  # , AsyncQueue
+from improv.link import Link
 from improv.actor import AbstractActor as Actor
 from improv.messaging import ActorStateMsg, ActorStateReplyMsg
 from improv.store import StoreInterface
