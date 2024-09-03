@@ -149,6 +149,7 @@ class Nexus:
 
         logger.info(f"Loading configuration file {file}:")
         self.config = Config(config_file=file)
+        self.config.parse_config()
 
         with open(file, "r") as f:  # write config file to log
             logger.info(f.read())

@@ -7,8 +7,8 @@ logger = logging.getLogger(__name__)
 
 
 class CannotCreateConfigException(Exception):
-    def __init__(self):
-        super().__init__("Cannot create config")
+    def __init__(self, msg):
+        super().__init__("Cannot create config: {}".format(msg))
 
 
 class Config:
@@ -33,6 +33,7 @@ class Config:
             logger.error("Error: The config file is not in dictionary format")
             raise TypeError
 
+    def parse_config(self):
         self.populate_defaults()
         self.validate_config()
 
@@ -135,7 +136,7 @@ class Config:
         if "actor_in_port" not in self.config["settings"]:
             self.config["settings"]["actor_in_port"] = 0
         if "harvest_data_to_disk" not in self.config["settings"]:
-            self.config["settings"]["harvest_data_to_disk"] = False
+            self.config["settings"]["harvest_data_to_disk"] = None
         if "harvester_output_file" not in self.config["settings"]:
             self.config["settings"]["harvester_output_file"] = None
         if "use_ephemeral_harvester_filename" not in self.config["settings"]:
@@ -147,9 +148,15 @@ class Config:
         if (
             self.config["settings"]["harvester_output_file"]
             or self.config["settings"]["use_ephemeral_harvester_filename"]
-            and self.config["settings"]["harvest_data_to_disk"] is None
-        ):
+        ) and self.config["settings"]["harvest_data_to_disk"] is None:
             self.config["settings"]["harvest_data_to_disk"] = True
+
+        if (
+            self.config["settings"]["harvest_data_to_disk"] is True
+            and self.config["settings"]["use_ephemeral_harvester_filename"] is False
+            and self.config["settings"]["harvester_output_file"] is None
+        ):
+            self.config["settings"]["harvester_output_file"] = "harvester.bin"
 
     def popoulate_redis_defaults(self):
         if "redis_config" not in self.config:
@@ -220,7 +227,9 @@ class Config:
             logger.error(
                 "Cannot both generate a unique filename and use the one provided."
             )
-            raise Exception("Cannot use unique filename and use the one provided.")
+            raise CannotCreateConfigException(
+                "Cannot use unique file name and the one provided."
+            )
 
         if (
             self.config["settings"]["harvester_output_file"]
@@ -231,7 +240,9 @@ class Config:
                 logger.error(
                     "Invalid configuration. Cannot save to disk with saving disabled."
                 )
-                raise Exception("Cannot persist to disk with saving disabled.")
+                raise CannotCreateConfigException(
+                    "Cannot persist to disk with saving disabled."
+                )
 
         if self.config["settings"]["harvester_fsync_frequency"] and self.config[
             "settings"

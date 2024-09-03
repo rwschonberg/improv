@@ -125,7 +125,7 @@ def nex_startup(ports, filename):
 
 @pytest.fixture
 def start_nexus_minimal_zmq(ports):
-    filename = "minimal_zmq.yaml"
+    filename = "minimal.yaml"
     p = multiprocessing.Process(target=nex_startup, args=(ports, filename))
     p.start()
     time.sleep(1)
