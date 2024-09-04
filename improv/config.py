@@ -27,7 +27,7 @@ class Config:
 
         if self.config is None:
             logger.error("The config file is empty")
-            raise CannotCreateConfigException
+            raise CannotCreateConfigException("The config file is empty")
 
         if type(self.config) is not dict:
             logger.error("Error: The config file is not in dictionary format")

@@ -902,6 +902,7 @@ class Nexus:
             log_pull_port=self.logger_pull_port,
             outgoing_links=outgoing_links,
             incoming_links=incoming_links,
+            store_port_num=self.store_port,
             **actor.options,
         )
 

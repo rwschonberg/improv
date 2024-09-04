@@ -53,7 +53,7 @@ def test_create_config_settings(set_configdir):
         "output_port": 5556,
         "store_size": 100000000,
         "actor_in_port": 0,
-        "harvest_data_to_disk": False,
+        "harvest_data_to_disk": None,
         "harvester_fsync_frequency": None,
         "harvester_output_file": None,
         "use_ephemeral_harvester_filename": False,
@@ -200,7 +200,7 @@ def test_config_harvester_disabled(set_configdir):
     cfg.config = dict()
     cfg.config["settings"] = dict()
     cfg.parse_config()
-    assert cfg.settings["harvest_data_to_disk"] is False
+    assert cfg.settings["harvest_data_to_disk"] is None
     assert cfg.settings["harvester_fsync_frequency"] is None
     assert cfg.settings["harvester_output_file"] is None
     assert cfg.settings["use_ephemeral_harvester_filename"] is False

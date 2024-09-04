@@ -1,4 +1,4 @@
-from improv.actor import Actor
+from improv.actor import ZmqActor
 import numpy as np
 from queue import Empty
 import logging
@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-class Processor(Actor):
+class Processor(ZmqActor):
     """Sample processor used to calculate the average of an array of integers.
 
     Intended for use with sample_generator.py.
