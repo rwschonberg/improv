@@ -306,8 +306,7 @@ def test_specified_busy_port(caplog, setdir, ports, setup_store):
     nex.destroy_nexus()
 
     assert any(
-        "Could not connect to port 6379" in record.msg
-        for record in caplog.records
+        "Could not connect to port 6379" in record.msg for record in caplog.records
     )
 
     assert any(

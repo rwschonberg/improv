@@ -166,8 +166,18 @@ def actor_startup(actor):
 
 @pytest.fixture
 def harvester(ports):
-    p = multiprocessing.Process(target=bootstrap_harvester, args=(
-    "localhost", ports[3], "localhost", 6379, "localhost", 1234, "test_harvester_out.bin"))
+    p = multiprocessing.Process(
+        target=bootstrap_harvester,
+        args=(
+            "localhost",
+            ports[3],
+            "localhost",
+            6379,
+            "localhost",
+            1234,
+            "test_harvester_out.bin",
+        ),
+    )
     p.start()
     time.sleep(1)
     yield ports, p

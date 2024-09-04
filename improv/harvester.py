@@ -12,19 +12,36 @@ from improv.messaging import HarvesterInfoMsg
 
 
 def bootstrap_harvester(
+    nexus_hostname,
+    nexus_port,
+    redis_hostname,
+    redis_port,
+    broker_hostname,
+    broker_port,
+    filename,
+):
+    harvester = RedisHarvester(
         nexus_hostname,
         nexus_port,
         redis_hostname,
         redis_port,
         broker_hostname,
-        broker_port, filename):
-    harvester = RedisHarvester(nexus_hostname, nexus_port, redis_hostname, redis_port, broker_hostname, broker_port)
+        broker_port,
+    )
     harvester.register_with_nexus()
     harvester.serve(harvester.collect, filename)
 
 
 class RedisHarvester:
-    def __init__(self, nexus_hostname, nexus_comm_port, redis_hostname, redis_port, broker_hostname, broker_port):
+    def __init__(
+        self,
+        nexus_hostname,
+        nexus_comm_port,
+        redis_hostname,
+        redis_port,
+        broker_hostname,
+        broker_port,
+    ):
         self.link: ZmqLink | None = None
         self.running = True
         self.nexus_hostname: str = nexus_hostname
@@ -56,7 +73,9 @@ class RedisHarvester:
         self.sub_port = int(sub_port_string.split(":")[-1])
         self.sub_socket.subscribe("")  # receive all incoming messages
 
-        self.store_client = RedisStoreInterface("harvester", self.redis_port, self.redis_hostname)
+        self.store_client = RedisStoreInterface(
+            "harvester", self.redis_port, self.redis_hostname
+        )
 
         self.link = ZmqLink(self.sub_socket, "harvester", "")
 

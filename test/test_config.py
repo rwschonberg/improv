@@ -141,16 +141,14 @@ def test_create_config_blank_file(set_configdir):
     """Tests if a blank config file raises an error."""
 
     with pytest.raises(CannotCreateConfigException):
-        cfg = Config("blank_file.yaml")
-        cfg.parse_config()
+        Config("blank_file.yaml")
 
 
 def test_create_config_nonsense_file(set_configdir, caplog):
     """Tests if an improperly formatted config raises an error."""
 
     with pytest.raises(TypeError):
-        cfg = Config("nonsense.yaml")
-        cfg.parse_config()
+        Config("nonsense.yaml")
 
 
 def test_acyclic_graph(set_configdir):
