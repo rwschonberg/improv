@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import base64
 import signal
+import time
 
 import zmq
 
@@ -90,21 +92,32 @@ class RedisHarvester:
         return
 
     def serve(self, message_process_func, filename):
-        with open(filename, "a+") as file:
+        with open(filename, "ba") as file:
             while self.running:
-                # this is more testable but may have a performance overhead
                 message_process_func(file)
 
     def collect(self, file):
-        # calculate the size of the store currently
-        # if the size is over 75% capacity
-        #   while the size is over 50% capacity
-        #     pull a message off the link
-        #     fetch the data from the store without decompression (raw access to client)
-        #     save the data to disk
-        #     perform flush if we need to
-        #     expire the key in Redis
-        pass
+        db_info = self.store_client.client.info()
+        max_memory = db_info["maxmemory"]
+        used_memory = db_info["used_memory"]
+        used_max_ratio = used_memory / max_memory
+        if used_max_ratio > 0.75:
+            while used_max_ratio > 0.50:
+                try:
+                    key = self.link.get(timeout=100)  # 100ms
+                except TimeoutError:
+                    break  # break the while loop so we can get back out
+                raw_data = self.store_client.client.get(key)
+                encoded_data = base64.b64encode(raw_data)
+                file.write(encoded_data)
+                file.write(b"\n")
+                self.store_client.client.delete(key)
+                db_info = self.store_client.client.info()
+                max_memory = db_info["maxmemory"]
+                used_memory = db_info["used_memory"]
+                used_max_ratio = used_memory / max_memory
+        time.sleep(0.1)
+        return
 
     def shutdown(self, signum, frame):
         print("shutting down due to signal {}".format(signum))

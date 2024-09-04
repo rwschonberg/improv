@@ -58,7 +58,8 @@ class ZmqLink:
             self.socket.send_multipart(
                 [self.topic.encode("utf-8"), json.dumps(item).encode("utf-8")]
             )
-        self.socket.send_pyobj(item)
+        else:
+            self.socket.send_pyobj(item)
 
     async def put_async(self, item):
         loop = asyncio.get_event_loop()

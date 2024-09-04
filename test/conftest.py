@@ -8,6 +8,8 @@ import uuid
 import pytest
 import subprocess
 
+import zmq
+
 from improv.actor import ZmqActor
 from improv.harvester import bootstrap_harvester
 from improv.nexus import Nexus
@@ -166,6 +168,9 @@ def actor_startup(actor):
 
 @pytest.fixture
 def harvester(ports):
+    ctx = zmq.Context()
+    socket = ctx.socket(zmq.PUB)
+    socket.bind("tcp://*:1234")
     p = multiprocessing.Process(
         target=bootstrap_harvester,
         args=(
@@ -180,8 +185,9 @@ def harvester(ports):
     )
     p.start()
     time.sleep(1)
-    yield ports, p
+    yield ports, socket, p
     try:
         os.remove("test_harvester_out.bin")
     except Exception as e:
         print(e)
+    socket.close(linger=0)
