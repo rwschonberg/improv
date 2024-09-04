@@ -95,9 +95,7 @@ async def test_simple_boot_and_quit(dir, configfile, logfile, setdir, ports):
         ("minimal", "minimal.yaml", "testlog", "sample_generator_data.npy"),
     ],
 )
-async def test_stop_output_spawn(dir, configfile, logfile, datafile, setdir, ports):
-    loop = asyncio.get_event_loop()
-    loop.set_debug(True)
+async def test_stop_output(dir, configfile, logfile, datafile, setdir, ports):
     os.chdir(dir)
 
     control_port, output_port, logging_port, actor_in_port = ports
@@ -156,8 +154,6 @@ async def test_stop_output_spawn(dir, configfile, logfile, datafile, setdir, por
     ],
 )
 async def test_stop_output_spawn(dir, configfile, logfile, datafile, setdir, ports):
-    loop = asyncio.get_event_loop()
-    loop.set_debug(True)
     os.chdir(dir)
 
     control_port, output_port, logging_port, actor_in_port = ports
