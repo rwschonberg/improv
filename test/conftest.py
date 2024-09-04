@@ -9,6 +9,7 @@ import pytest
 import subprocess
 
 from improv.actor import ZmqActor
+from improv.harvester import bootstrap_harvester
 from improv.nexus import Nexus
 
 store_loc = str(os.path.join("/tmp/", str(uuid.uuid4())))
@@ -161,3 +162,16 @@ def zmq_actor(ports):
 
 def actor_startup(actor):
     actor.register_with_nexus()
+
+
+@pytest.fixture
+def harvester(ports):
+    p = multiprocessing.Process(target=bootstrap_harvester, args=(
+    "localhost", ports[3], "localhost", 6379, "localhost", 1234, "test_harvester_out.bin"))
+    p.start()
+    time.sleep(1)
+    yield ports, p
+    try:
+        os.remove("test_harvester_out.bin")
+    except Exception as e:
+        print(e)

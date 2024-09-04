@@ -18,7 +18,7 @@ class ZmqLink:
         self.real_executor = None
         self.socket = socket  # this must already be set up
         self.socket_type = self.socket.getsockopt(SocketOption.TYPE)
-        if self.socket_type in [zmq.PUB, zmq.SUB] and not topic:
+        if self.socket_type in [zmq.PUB, zmq.SUB] and topic is None:
             raise Exception("Cannot open PUB/SUB link without topic")
         self.status = "pending"
         self.result = None

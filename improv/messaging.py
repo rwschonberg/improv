@@ -56,3 +56,16 @@ class LogInfoReplyMsg:
         self.name = name
         self.status = status
         self.info = info
+
+
+class HarvesterInfoMsg:
+    def __init__(self, name, info):
+        self.name = name
+        self.info = info
+
+
+class HarvesterInfoReplyMsg:
+    def __init__(self, name, status, info):
+        self.name = name
+        self.status = status
+        self.info = info
