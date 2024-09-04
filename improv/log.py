@@ -112,11 +112,8 @@ class LogServer:
             "Port up and running, ready to log messages",
         )
 
-        print("registering with nexus")
         self.nexus_socket.send_pyobj(port_info)
-        print("waiting for reply")
         self.nexus_socket.recv_pyobj()
-        print("got reply from nexus")
 
         return
 

@@ -276,7 +276,6 @@ def test_specified_free_port(caplog, setdir, ports):
         output_port=ports[1],
     )
 
-    nex.destroy_nexus()
     store = StoreInterface(server_port_num=6378)
     store.connect_to_server()
     key = store.put("port 6378")
@@ -297,18 +296,22 @@ def test_specified_free_port(caplog, setdir, ports):
 
 def test_specified_busy_port(caplog, setdir, ports, setup_store):
     nex = Nexus("test")
-    with pytest.raises(Exception, match="Could not start Redis on specified port."):
-        nex.create_nexus(
-            file="minimal_with_fixed_default_redis_port.yaml",
-            store_size=10000000,
-            control_port=ports[0],
-            output_port=ports[1],
-        )
+    nex.create_nexus(
+        file="minimal_with_fixed_default_redis_port.yaml",
+        store_size=10000000,
+        control_port=ports[0],
+        output_port=ports[1],
+    )
 
     nex.destroy_nexus()
 
     assert any(
-        "Could not start Redis on specified port number." in record.msg
+        "Could not connect to port 6379" in record.msg
+        for record in caplog.records
+    )
+
+    assert any(
+        "StoreInterface start successful on port 6380" in record.msg
         for record in caplog.records
     )
 
