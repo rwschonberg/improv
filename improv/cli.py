@@ -202,7 +202,7 @@ def run_server(args):
     logging.basicConfig(
         level=logging.DEBUG,
         format="%(name)s %(message)s",
-        handlers=[logging.FileHandler(args.logfile)],
+        handlers=[logging.FileHandler("improv-debug.log")],
     )
 
     if not args.actor_path:
@@ -216,6 +216,7 @@ def run_server(args):
         control_port=args.control_port,
         output_port=args.output_port,
         log_server_pub_port=args.logging_port,
+        logfile=args.logfile,
     )
     curr_dt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(
@@ -330,7 +331,7 @@ def run(args, timeout=10):
 
     print(" ".join(server_opts))
 
-    with open(args.logfile, mode="a+") as logfile:
+    with open("improv-debug.log", mode="a+") as logfile:
         server = subprocess.Popen(server_opts, stdout=logfile, stderr=logfile)
 
     # wait for server to start up
@@ -361,9 +362,9 @@ def get_server_ports(args, timeout):
     time_now = 0
     ports = None
     while time_now < timeout:
-        server_start_time = _server_start_logged(args.logfile)
+        server_start_time = _server_start_logged("improv-debug.log")
         if server_start_time and server_start_time >= curr_dt:
-            ports = _get_ports(args.logfile)
+            ports = _get_ports("improv-debug.log")
             if ports:
                 break
 
@@ -372,12 +373,12 @@ def get_server_ports(args, timeout):
 
     if not server_start_time:
         print(
-            f"Unable to read server start time from {args.logfile}.\n"
+            f"Unable to read server start time from {'improv-debug.log'}.\n"
             "This may be because the server could not be started or "
             "did not log its activity."
         )
     elif not ports:
-        print(f"Unable to read ports from {args.logfile}.")
+        print(f"Unable to read ports from {'improv-debug.log'}.")
 
     return ports
 

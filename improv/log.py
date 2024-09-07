@@ -13,6 +13,8 @@ from improv.messaging import LogInfoMsg
 
 local_log = logging.getLogger(__name__)
 
+# TODO: ideally there should be some kind of drain at shutdown time so we don't miss any log
+#   messages, but that would make shutdown also take longer. TBD?
 
 def bootstrap_log_server(
     nexus_hostname, nexus_port, log_filename="global.log", logger_pull_port=None
@@ -78,7 +80,7 @@ class LogServer:
 
         signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
         for s in signals:
-            signal.signal(s, self.shutdown)
+            signal.signal(s, self.stop)
 
     def register_with_nexus(self):
         # connect to nexus
@@ -120,13 +122,12 @@ class LogServer:
     def serve(self, log_func):
         while self.running:
             log_func()  # this is more testable but may have a performance overhead
+        self.shutdown()
 
     def read_and_log_message(self):  # receive and send back out
         pass
 
-    def shutdown(self, signum, frame):
-        local_log.info(f"Log server shutting down due to signal {signum}")
-
+    def shutdown(self):
         if self.listener:
             self.listener.stop()
 
@@ -147,5 +148,11 @@ class LogServer:
 
         if self.zmq_context:
             self.zmq_context.destroy(linger=0)
+
+        for handler in local_log.handlers:
+            handler.close()
+
+    def stop(self, signum, frame):
+        local_log.info(f"Log server shutting down due to signal {signum}")
 
         self.running = False

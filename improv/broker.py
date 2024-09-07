@@ -75,7 +75,6 @@ class PubSubBroker:
             self.running = False
 
     def shutdown(self, signum, frame):
-        print("shutting down due to signal {}".format(signum))
         if self.sub_socket:
             self.sub_socket.close(linger=0)
 

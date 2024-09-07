@@ -53,10 +53,7 @@ def test_create_config_settings(set_configdir):
         "output_port": 5556,
         "store_size": 100000000,
         "actor_in_port": 0,
-        "harvest_data_to_disk": None,
-        "harvester_fsync_frequency": None,
-        "harvester_output_file": None,
-        "use_ephemeral_harvester_filename": False,
+        "harvest_data_from_memory": None,
     }
 
 
@@ -198,85 +195,12 @@ def test_config_harvester_disabled(set_configdir):
     cfg.config = dict()
     cfg.config["settings"] = dict()
     cfg.parse_config()
-    assert cfg.settings["harvest_data_to_disk"] is None
-    assert cfg.settings["harvester_fsync_frequency"] is None
-    assert cfg.settings["harvester_output_file"] is None
-    assert cfg.settings["use_ephemeral_harvester_filename"] is False
+    assert cfg.settings["harvest_data_from_memory"] is None
 
-
-def test_config_harvester_enabled_with_static_filename(set_configdir):
+def test_config_harvester_enabled(set_configdir):
     cfg = Config("minimal.yaml")
     cfg.config = dict()
     cfg.config["settings"] = dict()
-    cfg.config["settings"]["harvester_output_file"] = "asdf.txt"
+    cfg.config["settings"]["harvest_data_from_memory"] = True
     cfg.parse_config()
-    assert cfg.settings["harvest_data_to_disk"] is True
-    assert cfg.settings["harvester_fsync_frequency"] is None
-    assert cfg.settings["harvester_output_file"] == "asdf.txt"
-    assert cfg.settings["use_ephemeral_harvester_filename"] is False
-
-
-def test_config_harvester_enabled_with_ephemeral_filename(set_configdir):
-    cfg = Config("minimal.yaml")
-    cfg.config = dict()
-    cfg.config["settings"] = dict()
-    cfg.config["settings"]["use_ephemeral_harvester_filename"] = True
-    cfg.parse_config()
-    assert cfg.settings["harvest_data_to_disk"] is True
-    assert cfg.settings["harvester_fsync_frequency"] is None
-    assert cfg.settings["harvester_output_file"] is None
-    assert cfg.settings["use_ephemeral_harvester_filename"] is True
-
-
-def test_config_sets_default_harvester_filename(set_configdir):
-    cfg = Config("minimal.yaml")
-    cfg.config = dict()
-    cfg.config["settings"] = dict()
-    cfg.config["settings"]["harvest_data_to_disk"] = True
-    cfg.parse_config()
-    assert cfg.settings["harvest_data_to_disk"] is True
-    assert cfg.settings["harvester_fsync_frequency"] is None
-    assert cfg.settings["harvester_output_file"] == "harvester.bin"
-    assert cfg.settings["use_ephemeral_harvester_filename"] is False
-
-
-def test_config_errors_saving_fsync_configured_but_disabled(set_configdir):
-    cfg = Config("minimal.yaml")
-    cfg.config = dict()
-    cfg.config["settings"] = dict()
-    cfg.config["settings"]["harvest_data_to_disk"] = False
-    cfg.config["settings"]["harvester_fsync_frequency"] = "always"
-    with pytest.raises(CannotCreateConfigException):
-        cfg.parse_config()
-
-
-def test_config_errors_filename_configured_but_disabled(set_configdir):
-    cfg = Config("minimal.yaml")
-    cfg.config = dict()
-    cfg.config["settings"] = dict()
-    cfg.config["settings"]["harvest_data_to_disk"] = False
-    cfg.config["settings"]["harvester_output_file"] = "asdf.asdf"
-    with pytest.raises(CannotCreateConfigException):
-        cfg.parse_config()
-
-
-def test_config_errors_ephemeral_configured_but_disabled(set_configdir):
-    cfg = Config("minimal.yaml")
-    cfg.config = dict()
-    cfg.config["settings"] = dict()
-    cfg.config["settings"]["harvest_data_to_disk"] = False
-    cfg.config["settings"]["use_ephemeral_harvester_filename"] = True
-
-    with pytest.raises(CannotCreateConfigException):
-        cfg.parse_config()
-
-
-def test_config_errors_ephemeral_and_static_name(set_configdir):
-    cfg = Config("minimal.yaml")
-    cfg.config = dict()
-    cfg.config["settings"] = dict()
-    cfg.config["settings"]["harvester_output_file"] = "asdf.asdf"
-    cfg.config["settings"]["use_ephemeral_harvester_filename"] = True
-
-    with pytest.raises(CannotCreateConfigException):
-        cfg.parse_config()
+    assert cfg.settings["harvest_data_from_memory"]

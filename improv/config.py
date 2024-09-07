@@ -42,12 +42,10 @@ class Config:
 
     def populate_defaults(self):
         self.populate_settings_defaults()
-
         self.popoulate_redis_defaults()
 
     def validate_config(self):
         self.validate_redis_config()
-        self.validate_harvester_config()
 
     def create_config(self):
         """Read yaml config file and create config for Nexus
@@ -135,28 +133,8 @@ class Config:
             self.config["settings"]["output_port"] = 5556
         if "actor_in_port" not in self.config["settings"]:
             self.config["settings"]["actor_in_port"] = 0
-        if "harvest_data_to_disk" not in self.config["settings"]:
-            self.config["settings"]["harvest_data_to_disk"] = None
-        if "harvester_output_file" not in self.config["settings"]:
-            self.config["settings"]["harvester_output_file"] = None
-        if "use_ephemeral_harvester_filename" not in self.config["settings"]:
-            self.config["settings"]["use_ephemeral_harvester_filename"] = False
-        if "harvester_fsync_frequency" not in self.config["settings"]:
-            self.config["settings"]["harvester_fsync_frequency"] = None
-
-        # enable saving automatically if the user configured a saving option
-        if (
-            self.config["settings"]["harvester_output_file"]
-            or self.config["settings"]["use_ephemeral_harvester_filename"]
-        ) and self.config["settings"]["harvest_data_to_disk"] is None:
-            self.config["settings"]["harvest_data_to_disk"] = True
-
-        if (
-            self.config["settings"]["harvest_data_to_disk"] is True
-            and self.config["settings"]["use_ephemeral_harvester_filename"] is False
-            and self.config["settings"]["harvester_output_file"] is None
-        ):
-            self.config["settings"]["harvester_output_file"] = "harvester.bin"
+        if "harvest_data_from_memory" not in self.config["settings"]:
+            self.config["settings"]["harvest_data_from_memory"] = None
 
     def popoulate_redis_defaults(self):
         if "redis_config" not in self.config:
@@ -217,47 +195,6 @@ class Config:
             raise Exception(
                 "Cannot use unknown fsync frequency ",
                 self.config["redis_config"]["fsync_frequency"],
-            )
-
-    def validate_harvester_config(self):
-        if (
-            self.config["settings"]["harvester_output_file"]
-            and self.config["settings"]["use_ephemeral_harvester_filename"]
-        ):
-            logger.error(
-                "Cannot both generate a unique filename and use the one provided."
-            )
-            raise CannotCreateConfigException(
-                "Cannot use unique file name and the one provided."
-            )
-
-        if (
-            self.config["settings"]["harvester_output_file"]
-            or self.config["settings"]["use_ephemeral_harvester_filename"]
-            or self.config["settings"]["harvester_fsync_frequency"]
-        ):
-            if not self.config["settings"]["harvest_data_to_disk"]:
-                logger.error(
-                    "Invalid configuration. Cannot save to disk with saving disabled."
-                )
-                raise CannotCreateConfigException(
-                    "Cannot persist to disk with saving disabled."
-                )
-
-        if self.config["settings"]["harvester_fsync_frequency"] and self.config[
-            "settings"
-        ]["harvester_fsync_frequency"] not in [
-            "every_write",
-            "every_second",
-            "no_schedule",
-        ]:
-            logger.error(
-                "Cannot use unknown harvester fsync frequency ",
-                self.config["settings"]["harvester_fsync_frequency"],
-            )
-            raise Exception(
-                "Cannot use unknown fsync frequency ",
-                self.config["settings"]["harvester_fsync_frequency"],
             )
 
 

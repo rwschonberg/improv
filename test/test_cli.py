@@ -46,11 +46,8 @@ def server(setdir, ports):
     server = subprocess.Popen(server_opts)
     time.sleep(SERVER_WARMUP)
     yield server
-    server.wait(SERVER_TIMEOUT)
-    try:
-        os.getcwd()
-    except FileNotFoundError:
-        pass
+    if server.poll() is None:
+        pytest.fail("Server did not shut down correctly.")
 
 
 @pytest.fixture
@@ -176,12 +173,14 @@ def test_can_override_ip(mode, flag, expected):
 
 def test_sigint_kills_server(server):
     server.send_signal(signal.SIGINT)
+    server.wait(SERVER_TIMEOUT)
 
 
 def test_improv_list_nonempty(server):
     proc_list = cli.run_list("", printit=False)
     assert len(proc_list) > 0
     server.send_signal(signal.SIGINT)
+    server.wait(SERVER_TIMEOUT)
 
 
 def test_improv_kill_empties_list(server):
@@ -190,6 +189,7 @@ def test_improv_kill_empties_list(server):
     cli.run_cleanup("", headless=True)
     proc_list = cli.run_list("", printit=False)
     assert len(proc_list) == 0
+    server.wait(SERVER_TIMEOUT)
 
 
 def test_improv_run_writes_stderr_to_log(setdir, ports):
@@ -217,10 +217,11 @@ def test_improv_run_writes_stderr_to_log(setdir, ports):
     time.sleep(SERVER_WARMUP)
     server.kill()
     server.wait(SERVER_TIMEOUT)
-    with open("testlog") as log:
+    with open("improv-debug.log") as log:
         contents = log.read()
+    print(contents)
     assert "Traceback" in contents
-    os.remove("testlog")
+    os.remove("improv-debug.log")
     cli.run_cleanup("", headless=True)
 
 
@@ -250,7 +251,7 @@ def test_get_ports_from_logfile(setdir):
 
 
 def test_no_server_start_in_logfile_raises_error(setdir, cli_args, capsys):
-    with open(cli_args.logfile, mode="w") as f:
+    with open("improv-debug.log", mode="w") as f:
         f.write("this is some placeholder text")
 
     cli.get_server_ports(cli_args, timeout=1)
@@ -258,18 +259,18 @@ def test_no_server_start_in_logfile_raises_error(setdir, cli_args, capsys):
     captured = capsys.readouterr()
     assert "Unable to read server start time" in captured.out
 
-    os.remove(cli_args.logfile)
+    os.remove("improv-debug.log")
     cli.run_cleanup("", headless=True)
 
 
 def test_no_ports_in_logfile_raises_error(setdir, cli_args, capsys):
     curr_dt = datetime.datetime.now().replace(microsecond=0)
-    with open(cli_args.logfile, mode="w") as f:
+    with open("improv-debug.log", mode="w") as f:
         f.write(f"{curr_dt} Server running on (control, output, log) ports XXX\n")
 
     cli.get_server_ports(cli_args, timeout=1)
     captured = capsys.readouterr()
-    assert f"Unable to read ports from {cli_args.logfile}." in captured.out
+    assert f"Unable to read ports from {'improv-debug.log'}." in captured.out
 
-    os.remove(cli_args.logfile)
+    os.remove("improv-debug.log")
     cli.run_cleanup("", headless=True)

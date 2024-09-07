@@ -244,7 +244,7 @@ def test_start_store(caplog):
         "StoreInterface start successful" in record.msg for record in caplog.records
     )
 
-    nex._closeStoreInterface()
+    nex._close_store_interface()
     nex.destroy_nexus()
     assert True
 
@@ -252,7 +252,7 @@ def test_start_store(caplog):
 def test_close_store(caplog):
     nex = Nexus("test")
     nex._start_store_interface(10000)
-    nex._closeStoreInterface()
+    nex._close_store_interface()
 
     assert any(
         "StoreInterface close successful" in record.msg for record in caplog.records

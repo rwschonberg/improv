@@ -180,14 +180,11 @@ def harvester(ports):
             6379,
             "localhost",
             1234,
-            "test_harvester_out.bin",
+            "localhost",
+            12345
         ),
     )
     p.start()
     time.sleep(1)
     yield ports, socket, p
-    try:
-        os.remove("test_harvester_out.bin")
-    except Exception as e:
-        print(e)
     socket.close(linger=0)

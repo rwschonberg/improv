@@ -30,6 +30,7 @@ def test_harvester_shuts_down_on_sigint(setup_store, harvester):
 
 
 def test_harvester_dumps_to_file(setup_store, harvester):
+    store_interface = RedisStoreInterface()
     harvester_ports, broker_socket, p = harvester
     broker_link = ZmqLink(broker_socket, "test", "test topic")
     ctx = zmq.Context()
@@ -39,19 +40,20 @@ def test_harvester_dumps_to_file(setup_store, harvester):
     reply = HarvesterInfoReplyMsg("harvester", "OK", "")
     s.send_pyobj(reply)
     client = RedisStoreInterface()
-    for i in range(9):
+    for i in range(10):
         message = [i for i in range(500000)]
         key = client.put(message)
         broker_link.put(key)
-    time.sleep(5)
+    time.sleep(2)
+
+    db_info = store_interface.client.info()
+    max_memory = db_info["maxmemory"]
+    used_memory = db_info["used_memory"]
+    used_max_ratio = used_memory / max_memory
+    assert used_max_ratio <= 0.75
+
     p.terminate()
     p.join(5)
     if p.exitcode is None:
         p.kill()
         pytest.fail("Harvester did not exit in time")
-
-    with open("test_harvester_out.bin", "r") as f:
-        data = f.readlines()
-        for line in data:
-            record = pickle.loads(zlib.decompress(base64.b64decode(line)))
-            assert len(record) == 500000

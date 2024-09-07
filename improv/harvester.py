@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 import base64
+import logging
 import signal
 import time
 
 import zmq
 
 from improv.link import ZmqLink
+from improv.log import ZmqLogHandler
 from improv.store import RedisStoreInterface
 from zmq import SocketOption
 
 from improv.messaging import HarvesterInfoMsg
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 def bootstrap_harvester(
     nexus_hostname,
@@ -20,7 +24,8 @@ def bootstrap_harvester(
     redis_port,
     broker_hostname,
     broker_port,
-    filename,
+    logger_hostname,
+    logger_port,
 ):
     harvester = RedisHarvester(
         nexus_hostname,
@@ -29,9 +34,11 @@ def bootstrap_harvester(
         redis_port,
         broker_hostname,
         broker_port,
+        logger_hostname,
+        logger_port,
     )
     harvester.register_with_nexus()
-    harvester.serve(harvester.collect, filename)
+    harvester.serve(harvester.collect)
 
 
 class RedisHarvester:
@@ -43,6 +50,8 @@ class RedisHarvester:
         redis_port,
         broker_hostname,
         broker_port,
+        logger_hostname,
+        logger_port,
     ):
         self.link: ZmqLink | None = None
         self.running = True
@@ -57,12 +66,17 @@ class RedisHarvester:
         self.sub_port: int | None = None
         self.sub_socket: zmq.Socket | None = None
         self.store_client: RedisStoreInterface | None = None
+        self.logger_hostname: str = logger_hostname
+        self.logger_port: int = logger_port
+
+        logger.addHandler(ZmqLogHandler(logger_hostname, logger_port))
 
         signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
         for s in signals:
             signal.signal(s, self.shutdown)
 
     def register_with_nexus(self):
+        logger.info("Registering with Nexus")
         # connect to nexus
         self.zmq_context = zmq.Context()
         self.zmq_context.setsockopt(SocketOption.LINGER, 0)
@@ -91,27 +105,23 @@ class RedisHarvester:
 
         return
 
-    def serve(self, message_process_func, filename):
-        with open(filename, "ba") as file:
-            while self.running:
-                message_process_func(file)
+    def serve(self, message_process_func):
+        logger.info("Harvester beginning harvest")
+        while self.running:
+            message_process_func()
 
-    def collect(self, file):
+    def collect(self):
         db_info = self.store_client.client.info()
         max_memory = db_info["maxmemory"]
         used_memory = db_info["used_memory"]
         used_max_ratio = used_memory / max_memory
         if used_max_ratio > 0.75:
-            while used_max_ratio > 0.50:
+            while self.running and (used_max_ratio > 0.50):
                 try:
                     key = self.link.get(timeout=100)  # 100ms
+                    self.store_client.client.delete(key)
                 except TimeoutError:
-                    break  # break the while loop so we can get back out
-                raw_data = self.store_client.client.get(key)
-                encoded_data = base64.b64encode(raw_data)
-                file.write(encoded_data)
-                file.write(b"\n")
-                self.store_client.client.delete(key)
+                    pass
                 db_info = self.store_client.client.info()
                 max_memory = db_info["maxmemory"]
                 used_memory = db_info["used_memory"]
@@ -120,7 +130,7 @@ class RedisHarvester:
         return
 
     def shutdown(self, signum, frame):
-        print("shutting down due to signal {}".format(signum))
+        logger.info("shutting down due to signal {}".format(signum))
         if self.sub_socket:
             self.sub_socket.close(linger=0)
 
@@ -129,5 +139,8 @@ class RedisHarvester:
 
         if self.zmq_context:
             self.zmq_context.destroy(linger=0)
+
+        for handler in logger.handlers:
+            handler.close()
 
         self.running = False

@@ -1,0 +1,141 @@
+Redis saving disabled.
+Setting up Redis store.
+Searching for open port starting at specified port.
+Attempting to connect to Redis on port 6379
+Starting Redis server with command: 
+ ['redis-server', '--port', '6379', '--maxmemory', '100000000', '--save', '""']
+StoreInterface start successful on port 6379
+Redis server started
+Create new store object
+Redis server connected on port 6379
+Created link name -1915726651552375989 for link ('inputs:', 'Generator.q_out', 'outputs:', 'Processor.q_in')
+Setting up actor Generator
+Setting up actor Processor
+Actor Generator registering with broker
+Actor Processor registering with broker
+control: 5559, output: 5560, logging: 5561
+Actor Generator registered with broker
+Actor Processor registered with broker
+Starting processes
+Actor Generator setting up links
+Actor Processor setting up links
+<ForkProcess name='Generator' parent=13855 initial daemon>
+Actor Generator finished setting up links
+Actor Processor finished setting up links
+<ForkProcess name='Processor' parent=13855 initial daemon>
+All processes started
+Visual is not started: 'Visual'
+Nexus signal handler added
+Received state message from new actor Generator with info: comms opened and actor ready to initialize
+
+Updated actor state:
+Name: Generator
+Status: waiting
+Nexus control port: 52802
+
+Received state message from new actor Processor with info: comms opened and actor ready to initialize
+
+Updated actor state:
+Name: Processor
+Status: waiting
+Nexus control port: 52804
+
+All actors connected to Nexus. Allowing setup.
+Shutting down via signal handler due to 2.                 Steps may be out of order or dirty.
+Received shutdown order
+Stop signal: 2
+Unable to send shutdown message to actor Generator: 'NoneType' object has no attribute 'send_pyobj'
+Unable to send shutdown message to actor Processor: 'NoneType' object has no attribute 'send_pyobj'
+Canceling outstanding tasks
+Polling has stopped.
+Redis saving disabled.
+Setting up Redis store.
+Searching for open port starting at specified port.
+Attempting to connect to Redis on port 6379
+Starting Redis server with command: 
+ ['redis-server', '--port', '6379', '--maxmemory', '100000000', '--save', '""']
+StoreInterface start successful on port 6379
+Redis server started
+Create new store object
+Redis server connected on port 6379
+Created link name -1112754972857741748 for link ('inputs:', 'Generator.q_out', 'outputs:', 'Processor.q_in')
+Setting up actor Generator
+Setting up actor Processor
+Actor Generator registering with broker
+Actor Processor registering with broker
+control: 5563, output: 5564, logging: 5565
+Actor Generator registered with broker
+Actor Processor registered with broker
+Starting processes
+Actor Generator setting up links
+Actor Processor setting up links
+<ForkProcess name='Generator' parent=13863 initial daemon>
+Actor Generator finished setting up links
+Actor Processor finished setting up links
+<ForkProcess name='Processor' parent=13863 initial daemon>
+All processes started
+Visual is not started: 'Visual'
+Nexus signal handler added
+Received state message from new actor Generator with info: comms opened and actor ready to initialize
+
+Updated actor state:
+Name: Generator
+Status: waiting
+Nexus control port: 52822
+
+Received state message from new actor Processor with info: comms opened and actor ready to initialize
+
+Updated actor state:
+Name: Processor
+Status: waiting
+Nexus control port: 52824
+
+All actors connected to Nexus. Allowing setup.
+Shutting down via signal handler due to 2.                 Steps may be out of order or dirty.
+Received shutdown order
+Stop signal: 2
+Unable to send shutdown message to actor Generator: 'NoneType' object has no attribute 'send_pyobj'
+Redis saving disabled.
+Setting up Redis store.
+Searching for open port starting at specified port.
+Attempting to connect to Redis on port 6379
+Starting Redis server with command: 
+ ['redis-server', '--port', '6379', '--maxmemory', '100000000', '--save', '""']
+StoreInterface start successful on port 6379
+Redis server started
+Create new store object
+Redis server connected on port 6379
+Created link name -5832043610278749409 for link ('inputs:', 'Generator.q_out', 'outputs:', 'Processor.q_in')
+Setting up actor Generator
+Setting up actor Processor
+Actor Generator registering with broker
+Actor Processor registering with broker
+control: 5567, output: 5568, logging: 5569
+Actor Generator registered with broker
+Actor Processor registered with broker
+Starting processes
+Actor Generator setting up links
+Actor Processor setting up links
+<ForkProcess name='Generator' parent=13879 initial daemon>
+Actor Generator finished setting up links
+Actor Processor finished setting up links
+<ForkProcess name='Processor' parent=13879 initial daemon>
+All processes started
+Visual is not started: 'Visual'
+Nexus signal handler added
+Received state message from new actor Generator with info: comms opened and actor ready to initialize
+
+Updated actor state:
+Name: Generator
+Status: waiting
+Nexus control port: 52841
+
+Received state message from new actor Processor with info: comms opened and actor ready to initialize
+
+Updated actor state:
+Name: Processor
+Status: waiting
+Nexus control port: 52843
+
+All actors connected to Nexus. Allowing setup.
+Ran for 6.74128794670105 seconds

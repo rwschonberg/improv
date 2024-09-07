@@ -19,6 +19,7 @@ from zmq import PUB, REP, REQ, SocketOption
 
 from improv import log
 from improv.broker import bootstrap_broker
+from improv.harvester import bootstrap_harvester
 from improv.log import bootstrap_log_server
 from improv.messaging import (
     ActorStateMsg,
@@ -27,7 +28,7 @@ from improv.messaging import (
     BrokerInfoReplyMsg,
     BrokerInfoMsg,
     LogInfoMsg,
-    LogInfoReplyMsg,
+    LogInfoReplyMsg, HarvesterInfoMsg, HarvesterInfoReplyMsg,
 )
 from improv.store import StoreInterface, RedisStoreInterface
 from improv.actor import Signal, Actor, LinkInfo
@@ -58,6 +59,8 @@ logger.setLevel(logging.DEBUG)
 
 # TODO: socket setup can fail - need to check it
 
+# TODO: socket polling needs to be done for all recv calls; these could potentially block
+
 
 class ConfigFileNotProvidedException(Exception):
     def __init__(self):
@@ -79,6 +82,8 @@ class Nexus:
     """Main server class for handling objects in improv"""
 
     def __init__(self, name="Server"):
+        self.logfile: str | None = None
+        self.p_harvester: multiprocessing.Process | None = None
         self.actor_in_port: int | None = None
         self.actor_in_socket_port: int | None = None
         self.actor_in_socket: zmq.Socket | None = None
@@ -108,7 +113,7 @@ class Nexus:
         self.data_queues = {}
         self.actors = {}
         self.flags = {}
-        self.processes = []
+        self.processes: list[multiprocessing.Process] = []
 
     def __str__(self):
         return self.name
@@ -121,6 +126,7 @@ class Nexus:
         output_port=None,
         log_server_pub_port=None,
         actor_in_port=None,
+        logfile="global.log",
     ):
         """Function to initialize class variables based on config file.
 
@@ -139,6 +145,8 @@ class Nexus:
         Returns:
             string: "Shutting down", to notify start() that pollQueues has completed.
         """
+
+        self.logfile = logfile
 
         curr_dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         logger.info(f"************ new improv server session {curr_dt} ************")
@@ -374,7 +382,7 @@ class Nexus:
         and the message broker
         """
         logger.warning("Destroying Nexus")
-        self._closeStoreInterface()
+        self._close_store_interface()
 
         if self.out_socket:
             self.out_socket.close(linger=0)
@@ -390,6 +398,7 @@ class Nexus:
             self.zmq_context.destroy(linger=0)
 
         self._shutdown_broker()
+        self._shutdown_harvester()
         self._shutdown_logger()
 
     async def poll_queues(self):
@@ -681,7 +690,10 @@ class Nexus:
 
         for p in self.processes:
             p.terminate()
-            p.join()
+            p.join(timeout=5)
+            if p.exitcode is None:
+                p.kill()
+                logger.error("Process did not exit in time. Kill signal sent.")
 
         logger.warning("Actors terminated")
 
@@ -853,7 +865,7 @@ class Nexus:
             stderr=subprocess.DEVNULL,
         )
 
-    def _closeStoreInterface(self):
+    def _close_store_interface(self):
         """Internal method to kill the subprocess
         running the store
         """
@@ -861,7 +873,7 @@ class Nexus:
             try:
                 self.p_StoreInterface.send_signal(signal.SIGINT)
                 try:
-                    self.p_StoreInterface.wait(timeout=120)
+                    self.p_StoreInterface.wait(timeout=30)
                     logger.info(
                         "StoreInterface close successful: {}".format(self.store_port)
                     )
@@ -996,7 +1008,7 @@ class Nexus:
             args=(
                 "localhost",
                 self.broker_in_port,
-                "remote.global.log",
+                self.logfile,
                 log_server_pub_port,
             ),
         )
@@ -1044,37 +1056,51 @@ class Nexus:
         """Internal method to kill the subprocess
         running the message broker
         """
-        if hasattr(self, "p_broker"):
-            try:
-                self.p_broker.terminate()
-                self.p_broker.join(timeout=60)
-                if self.p_broker.exitcode is None:
-                    self.p_broker.kill()
-                    logger.error("Killed broker process")
-                else:
-                    logger.info(
-                        "Broker shutdown successful with exit code {}".format(
-                            self.p_broker.exitcode
-                        )
+        try:
+            self.p_broker.terminate()
+            self.p_broker.join(timeout=5)
+            if self.p_broker.exitcode is None:
+                self.p_broker.kill()
+                logger.error("Killed broker process")
+            else:
+                logger.info(
+                    "Broker shutdown successful with exit code {}".format(
+                        self.p_broker.exitcode
                     )
-            except Exception as e:
-                logger.exception(f"Unable to close broker {e}")
+                )
+        except Exception as e:
+            logger.exception(f"Unable to close broker {e}")
 
     def _shutdown_logger(self):
         """Internal method to kill the subprocess
         running the logger
         """
-        if self.p_logger:
+        try:
+            self.p_logger.terminate()
+            self.p_logger.join(timeout=5)
+            if self.p_logger.exitcode is None:
+                self.p_logger.kill()
+                logger.error("Killed logger process")
+            else:
+                logger.info("Logger shutdown successful")
+        except Exception as e:
+            logger.exception(f"Unable to close logger: {e}")
+
+    def _shutdown_harvester(self):
+        """Internal method to kill the subprocess
+        running the logger
+        """
+        if self.p_harvester:
             try:
-                self.p_logger.terminate()
-                self.p_logger.join(timeout=5)
-                if self.p_logger.exitcode is None:
-                    self.p_logger.kill()
-                    logger.error("Killed logger process")
+                self.p_harvester.terminate()
+                self.p_harvester.join(timeout=5)
+                if self.p_harvester.exitcode is None:
+                    self.p_harvester.kill()
+                    logger.error("Killed harvester process")
                 else:
-                    logger.info("Logger shutdown successful")
+                    logger.info("Harvester shutdown successful")
             except Exception as e:
-                logger.exception(f"Unable to close logger: {e}")
+                logger.exception(f"Unable to close harvester: {e}")
 
     def set_up_sockets(self, actor_in_port):
         cfg = self.config.settings  # this could be self.settings instead
@@ -1121,6 +1147,9 @@ class Nexus:
 
         self.out_socket.send_string("StoreInterface started")
 
+        if self.config.settings["harvest_data_from_memory"]:
+            loop.run_until_complete(self.start_harvester)
+
         # connect to store and subscribe to notifications
         logger.info("Create new store object")
         self.store = StoreInterface(server_port_num=self.store_port)
@@ -1137,3 +1166,23 @@ class Nexus:
             self.config.settings["output_port"] = output_port
         if actor_in_port is not None:
             self.config.settings["actor_in_port"] = actor_in_port
+
+    async def start_harvester(self):
+        self.p_harvester = multiprocessing.Process(
+            target=bootstrap_harvester, args=("localhost", self.broker_in_port, "localhost", self.store_port, "localhost", self.broker_pub_port, "localhost", self.logger_pull_port)
+        )
+        self.p_harvester.start()
+        time.sleep(1)
+        if not self.p_harvester.is_alive():
+            logger.error(
+                "Harvester process failed to start. "
+                "Please see the log file for more information. "
+                "The improv server will now exit."
+            )
+            self.quit()
+            raise Exception("Could not start harvester server.")
+
+        harvester_info: HarvesterInfoMsg = await self.broker_in_socket.recv_pyobj()
+        await self.broker_in_socket.send_pyobj(
+            HarvesterInfoReplyMsg(harvester_info.name, "OK", "registered harvester information")
+        )
