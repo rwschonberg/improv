@@ -222,6 +222,7 @@ def test_improv_run_writes_stderr_to_log(setdir, ports):
     print(contents)
     assert "Traceback" in contents
     os.remove("improv-debug.log")
+    os.remove("testlog")
     cli.run_cleanup("", headless=True)
 
 
