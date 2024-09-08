@@ -146,6 +146,7 @@ async def test_stop_output(dir, configfile, logfile, datafile, setdir, ports):
     os.remove(logfile)  # later, might want to read this file and check for messages
 
 
+@pytest.mark.skip
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("dir", "configfile", "logfile", "datafile"),

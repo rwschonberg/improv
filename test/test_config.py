@@ -197,6 +197,7 @@ def test_config_harvester_disabled(set_configdir):
     cfg.parse_config()
     assert cfg.settings["harvest_data_from_memory"] is None
 
+
 def test_config_harvester_enabled(set_configdir):
     cfg = Config("minimal.yaml")
     cfg.config = dict()

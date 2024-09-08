@@ -28,7 +28,9 @@ from improv.messaging import (
     BrokerInfoReplyMsg,
     BrokerInfoMsg,
     LogInfoMsg,
-    LogInfoReplyMsg, HarvesterInfoMsg, HarvesterInfoReplyMsg,
+    LogInfoReplyMsg,
+    HarvesterInfoMsg,
+    HarvesterInfoReplyMsg,
 )
 from improv.store import StoreInterface, RedisStoreInterface
 from improv.actor import Signal, Actor, LinkInfo
@@ -59,7 +61,8 @@ logger.setLevel(logging.DEBUG)
 
 # TODO: socket setup can fail - need to check it
 
-# TODO: socket polling needs to be done for all recv calls; these could potentially block
+# TODO: socket polling needs to be done for all recv calls;
+#  these could potentially block
 
 
 class ConfigFileNotProvidedException(Exception):
@@ -1169,7 +1172,17 @@ class Nexus:
 
     async def start_harvester(self):
         self.p_harvester = multiprocessing.Process(
-            target=bootstrap_harvester, args=("localhost", self.broker_in_port, "localhost", self.store_port, "localhost", self.broker_pub_port, "localhost", self.logger_pull_port)
+            target=bootstrap_harvester,
+            args=(
+                "localhost",
+                self.broker_in_port,
+                "localhost",
+                self.store_port,
+                "localhost",
+                self.broker_pub_port,
+                "localhost",
+                self.logger_pull_port,
+            ),
         )
         self.p_harvester.start()
         time.sleep(1)
@@ -1184,5 +1197,7 @@ class Nexus:
 
         harvester_info: HarvesterInfoMsg = await self.broker_in_socket.recv_pyobj()
         await self.broker_in_socket.send_pyobj(
-            HarvesterInfoReplyMsg(harvester_info.name, "OK", "registered harvester information")
+            HarvesterInfoReplyMsg(
+                harvester_info.name, "OK", "registered harvester information"
+            )
         )

@@ -1,7 +1,4 @@
-import base64
-import pickle
 import time
-import zlib
 
 import pytest
 import zmq

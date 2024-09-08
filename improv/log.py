@@ -13,10 +13,12 @@ from improv.messaging import LogInfoMsg
 
 local_log = logging.getLogger(__name__)
 
-DEBUG=False
+DEBUG = False
 
-# TODO: ideally there should be some kind of drain at shutdown time so we don't miss any log
-#   messages, but that would make shutdown also take longer. TBD?
+# TODO: ideally there should be some kind of drain at shutdown time
+#  so we don't miss any log messages, but that would make shutdown
+#  also take longer. TBD?
+
 
 def bootstrap_log_server(
     nexus_hostname, nexus_port, log_filename="global.log", logger_pull_port=None

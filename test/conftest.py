@@ -181,7 +181,7 @@ def harvester(ports):
             "localhost",
             1234,
             "localhost",
-            12345
+            12345,
         ),
     )
     p.start()

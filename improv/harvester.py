@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import logging
 import signal
 import time
@@ -16,6 +15,7 @@ from improv.messaging import HarvesterInfoMsg
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
 
 def bootstrap_harvester(
     nexus_hostname,
