@@ -1,4 +1,3 @@
-import asyncio
 import json
 import time
 
@@ -25,16 +24,16 @@ def test_sub_link():
     link_pub_socket.connect(f"tcp://localhost:{link_socket_port}")
 
     link_socket.poll(timeout=0)  # open libzmq bug (not pyzmq)
-
     link_socket.subscribe("test_topic")
-    time.sleep(2)
-
+    time.sleep(0.5)
     link_socket.poll(timeout=0)
 
     link = ZmqLink(link_socket, "test_link", "test_topic")
+
     yield link, link_pub_socket
     link.socket.close(linger=0)
     link_pub_socket.close(linger=0)
+    ctx.destroy(linger=0)
 
 
 @pytest.fixture
@@ -50,15 +49,58 @@ def test_pub_link():
     link_sub_socket.connect(f"tcp://localhost:{link_socket_port}")
     link_sub_socket.poll(timeout=0)
     link_sub_socket.subscribe("test_topic")
+    time.sleep(0.5)
     link_sub_socket.poll(timeout=0)
 
     link = ZmqLink(link_socket, "test_link", "test_topic")
+
     yield link, link_sub_socket
     link.socket.close(linger=0)
     link_sub_socket.close(linger=0)
+    ctx.destroy(linger=0)
 
 
-def test_put(test_pub_link):
+@pytest.fixture
+def test_req_link():
+    """Fixture to provide a commonly used Link object."""
+    ctx = zmq.Context()
+    link_socket = ctx.socket(zmq.REQ)
+    link_socket.bind("tcp://*:0")
+    link_socket_string = link_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
+    link_socket_port = int(link_socket_string.split(":")[-1])
+
+    link_rep_socket = ctx.socket(zmq.REP)
+    link_rep_socket.connect(f"tcp://localhost:{link_socket_port}")
+
+    link = ZmqLink(link_socket, "test_link")
+
+    yield link, link_rep_socket
+    link.socket.close(linger=0)
+    link_rep_socket.close(linger=0)
+    ctx.destroy(linger=0)
+
+
+@pytest.fixture
+def test_rep_link():
+    """Fixture to provide a commonly used Link object."""
+    ctx = zmq.Context()
+    link_socket = ctx.socket(zmq.REP)
+    link_socket.bind("tcp://*:0")
+    link_socket_string = link_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
+    link_socket_port = int(link_socket_string.split(":")[-1])
+
+    link_req_socket = ctx.socket(zmq.REQ)
+    link_req_socket.connect(f"tcp://localhost:{link_socket_port}")
+
+    link = ZmqLink(link_socket, "test_link")
+
+    yield link, link_req_socket
+    link.socket.close(linger=0)
+    link_req_socket.close(linger=0)
+    ctx.destroy(linger=0)
+
+
+def test_pub_put(test_pub_link):
     """Tests if messages can be put into the link.
 
     TODO:
@@ -67,16 +109,26 @@ def test_put(test_pub_link):
 
     link, link_sub_socket = test_pub_link
     msg = "message"
-    time.sleep(1)
-    # this is bad, but it doesn't work without this.
-    # I wonder if something in the zmq async execution pool just needs
-    # a moment to get set up, and going straight through to the test
-    # catches it in a bad state
 
     link.put(msg)
     res = link_sub_socket.recv_multipart()
     assert res[0].decode("utf-8") == "test_topic"
     assert json.loads(res[1].decode("utf-8")) == msg
+
+
+def test_req_put(test_req_link):
+    """Tests if messages can be put into the link.
+
+    TODO:
+        Parametrize multiple test input types.
+    """
+
+    link, link_rep_socket = test_req_link
+    msg = "message"
+
+    link.put(msg)
+    res = link_rep_socket.recv_pyobj()
+    assert res == msg
 
 
 def test_put_unserializable(test_pub_link):
@@ -88,7 +140,6 @@ def test_put_unserializable(test_pub_link):
     Raises:
         SerializationCallbackError: Actor objects are unserializable.
     """
-    time.sleep(1)
     act = Actor("test", "/tmp/store")
     link, link_sub_socket = test_pub_link
     sentinel = True
@@ -116,8 +167,6 @@ def test_put_nowait(test_pub_link):
         Parametrize multiple test input types.
     """
 
-    time.sleep(1)
-
     link, link_sub_socket = test_pub_link
     msg = "message"
 
@@ -134,8 +183,6 @@ def test_put_multiple(test_pub_link):
     """Tests if async putting multiple objects preserves their order."""
 
     link, link_sub_socket = test_pub_link
-
-    time.sleep(1)
 
     messages = [str(i) for i in range(10)]
 
@@ -160,8 +207,6 @@ async def test_put_and_get_async(test_pub_link):
 
     messages_out = []
 
-    time.sleep(1)
-
     link, link_sub_socket = test_pub_link
 
     for msg in messages:
@@ -184,10 +229,19 @@ async def test_put_and_get_async(test_pub_link):
         [str(i) for i in range(5)],
     ],
 )
-def test_get(test_sub_link, message):
+@pytest.mark.parametrize(
+    "timeout",
+    [
+        None,
+        5,
+    ],
+)
+def test_sub_get(test_sub_link, message, timeout):
     """Tests if get gets the correct element from the queue."""
 
     link, link_pub_socket = test_sub_link
+
+    time.sleep(1)
 
     if type(message) is list:
         for i in message:
@@ -201,13 +255,42 @@ def test_get(test_sub_link, message):
         )
         expected = message
 
-    assert link.get() == expected
+    assert link.get(timeout=timeout) == expected
 
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "message",
+        "",
+        None,
+        [str(i) for i in range(5)],
+    ],
+)
+@pytest.mark.parametrize(
+    "timeout",
+    [
+        None,
+        5,
+    ],
+)
+def test_rep_get(test_rep_link, message, timeout):
+    """Tests if get gets the correct element from the queue."""
+
+    link, link_req_socket = test_rep_link
+
+    link_req_socket.send_pyobj(message)
+
+    expected = message
+
+    assert link.get(timeout=timeout) == expected
 
 def test_get_empty(test_sub_link):
     """Tests if get blocks if the queue is empty."""
 
     link, unused = test_sub_link
+
+    time.sleep(0.1)
 
     with pytest.raises(TimeoutError):
         link.get(timeout=0.5)
@@ -238,7 +321,7 @@ def test_get_nowait(test_sub_link, message):
         )
         expected = message
 
-    time.sleep(1)
+    time.sleep(0.1)
 
     t_0 = time.perf_counter()
 
@@ -271,19 +354,10 @@ async def test_get_async_success(test_sub_link):
     assert res == "message"
 
 
-@pytest.mark.skip(reason="Stuck in lock contention loop.")
-@pytest.mark.asyncio
-async def test_get_async_empty(test_sub_link):
-    """
-    Tests if get_async times out given an empty queue.
-    """
-
-    link, scratch = test_sub_link
-    timeout = 5.0
-
-    with pytest.raises(asyncio.TimeoutError):
-        task = asyncio.create_task(link.get_async())
-        await asyncio.wait_for(task, timeout)
-        task.cancel()
-
-    link.real_executor.shutdown(wait=False, cancel_futures=True)
+def test_pub_put_no_topic():
+    ctx = zmq.Context()
+    s = ctx.socket(zmq.PUB)
+    with pytest.raises(Exception):
+        ZmqLink(s, "test")
+    s.close(linger=0)
+    ctx.destroy(linger=0)

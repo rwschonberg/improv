@@ -55,9 +55,6 @@ class Config:
         cfg = self.config
 
         for name, actor in cfg["actors"].items():
-            if name in self.actors.keys():
-                raise RepeatedActorError(name)
-
             packagename = actor.pop("package")
             classname = actor.pop("class")
 
@@ -72,6 +69,8 @@ class Config:
                 )
                 sig.bind(config_module.options)
 
+            # TODO: this is not trivial to test, since our code formatting
+            #   tools won't allow a file with a syntax error to exist
             except SyntaxError as e:
                 logger.error(f"Error: syntax error when initializing actor {name}: {e}")
                 return -1
@@ -151,8 +150,9 @@ class Config:
 
         # enable saving automatically if the user configured a saving option
         if (
-            self.config["redis_config"]["aof_dirname"]
-            or self.config["redis_config"]["generate_ephemeral_aof_dirname"]
+            (self.config["redis_config"]["aof_dirname"]
+             or self.config["redis_config"]["generate_ephemeral_aof_dirname"]
+             or self.config["redis_config"]["fsync_frequency"])
             and self.config["redis_config"]["enable_saving"] is None
         ):
             self.config["redis_config"]["enable_saving"] = True
@@ -162,8 +162,8 @@ class Config:
 
     def validate_redis_config(self):
         if (
-            self.config["redis_config"]["aof_dirname"]
-            and self.config["redis_config"]["generate_ephemeral_aof_dirname"]
+                self.config["redis_config"]["aof_dirname"]
+                and self.config["redis_config"]["generate_ephemeral_aof_dirname"]
         ):
             logger.error(
                 "Cannot both generate a unique dirname and use the one provided."
@@ -171,9 +171,9 @@ class Config:
             raise Exception("Cannot use unique dirname and use the one provided.")
 
         if (
-            self.config["redis_config"]["aof_dirname"]
-            or self.config["redis_config"]["generate_ephemeral_aof_dirname"]
-            or self.config["redis_config"]["fsync_frequency"]
+                self.config["redis_config"]["aof_dirname"]
+                or self.config["redis_config"]["generate_ephemeral_aof_dirname"]
+                or self.config["redis_config"]["fsync_frequency"]
         ):
             if not self.config["redis_config"]["enable_saving"]:
                 logger.error(
@@ -189,12 +189,10 @@ class Config:
             "no_schedule",
         ]:
             logger.error(
-                "Cannot use unknown fsync frequency ",
-                self.config["redis_config"]["fsync_frequency"],
+                f'Cannot use unknown fsync frequency {self.config["redis_config"]["fsync_frequency"]}'
             )
             raise Exception(
-                "Cannot use unknown fsync frequency ",
-                self.config["redis_config"]["fsync_frequency"],
+                f'Cannot use unknown fsync frequency {self.config["redis_config"]["fsync_frequency"]}'
             )
 
 
@@ -231,28 +229,3 @@ class ConfigModule:
             yaml.dump(cfg, file)
 
         return wflag
-
-
-class RepeatedActorError(Exception):
-    def __init__(self, repeat):
-        super().__init__()
-
-        self.name = "RepeatedActorError"
-        self.repeat = repeat
-
-        self.message = 'Actor name has already been used: "{}"'.format(repeat)
-
-    def __str__(self):
-        return self.message
-
-
-class RepeatedConnectionsError(Exception):
-    def __init__(self, repeat):
-        super().__init__()
-        self.name = "RepeatedConnectionsError"
-        self.repeat = repeat
-
-        self.message = 'Connection name has already been used: "{}"'.format(repeat)
-
-    def __str__(self):
-        return self.message

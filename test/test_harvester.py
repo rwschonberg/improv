@@ -26,7 +26,7 @@ def test_harvester_shuts_down_on_sigint(setup_store, harvester):
         assert True
 
 
-def test_harvester_dumps_to_file(setup_store, harvester):
+def test_harvester_relieves_memory_pressure(setup_store, harvester):
     store_interface = RedisStoreInterface()
     harvester_ports, broker_socket, p = harvester
     broker_link = ZmqLink(broker_socket, "test", "test topic")

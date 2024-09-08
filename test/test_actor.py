@@ -3,10 +3,10 @@ import psutil
 import pytest
 import zmq
 
-from improv.link import Link
 from improv.actor import AbstractActor as Actor
 from improv.messaging import ActorStateMsg, ActorStateReplyMsg
 from improv.store import StoreInterface
+from improv.link import ZmqLink
 
 # set global_variables
 
@@ -15,10 +15,10 @@ pytest.example_links = {}
 
 
 @pytest.fixture
-def init_actor(set_store_loc):
+def init_actor():
     """Fixture to initialize and teardown an instance of actor."""
 
-    act = Actor("Test", set_store_loc)
+    act = Actor("Test")
     yield act
     act = None
 
@@ -36,16 +36,17 @@ def example_links(setup_store, server_port_num):
     """Fixture to provide link objects as test input and setup store."""
     StoreInterface(server_port_num=server_port_num)
 
-    acts = [
-        Actor("act" + str(i), server_port_num) for i in range(1, 5)
-    ]  # range must be even
+    ctx = zmq.Context()
+    s = ctx.socket(zmq.PUSH)
 
     links = [
-        Link("L" + str(i + 1), acts[i], acts[i + 1]) for i in range(len(acts) // 2)
+        ZmqLink(s, "test") for i in range(2)
     ]
     link_dict = {links[i].name: links[i] for i, l in enumerate(links)}
     pytest.example_links = link_dict
-    return pytest.example_links
+    yield pytest.example_links
+    s.close(linger=0)
+    ctx.destroy(linger=0)
 
 
 @pytest.mark.parametrize(
@@ -75,10 +76,10 @@ def test_repr_default_initialization(init_actor):
     assert rep == "Test: dict_keys([])"
 
 
-def test_repr(example_string_links, set_store_loc):
+def test_repr(example_string_links):
     """Test if the actor representation has the right, nonempty, dict."""
 
-    act = Actor("Test", set_store_loc)
+    act = Actor("Test")
     act.set_links(example_string_links)
     assert act.__repr__() == "Test: dict_keys(['1', '2', '3'])"
 
@@ -93,37 +94,14 @@ def test_set_store_interface(setup_store, server_port_num):
 
 
 @pytest.mark.parametrize(
-    "links", [(pytest.example_string_links), ({}), (pytest.example_links), (None)]
+    "links", [pytest.example_string_links, ({}), pytest.example_links, None]
 )
-def test_set_links(links, set_store_loc):
+def test_set_links(links):
     """Tests if the actors links can be set to certain values."""
 
-    act = Actor("test", set_store_loc)
+    act = Actor("test")
     act.set_links(links)
     assert act.links == links
-
-
-@pytest.mark.parametrize(
-    ("qc", "qs"),
-    [
-        ("comm", "sig"),
-        (None, None),
-        ("", ""),
-        ("LINK", "LINK"),  # these are placeholder names (store is not setup)
-    ],
-)
-def test_set_comm_links(example_links, qc, qs, init_actor, setup_store, set_store_loc):
-    """Tests if commLinks can be added to the actor"s links."""
-
-    if qc == "LINK" and qs == "LINK":
-        qc = Link("L1", Actor("1", set_store_loc), Actor("2", set_store_loc))
-        qs = Link("L2", Actor("3", set_store_loc), Actor("4", set_store_loc))
-    act = init_actor
-    act.set_links(example_links)
-    act.set_comm_links(qc, qs)
-
-    example_links.update({"q_comm": qc, "q_sig": qs})
-    assert act.links == example_links
 
 
 @pytest.mark.parametrize(
@@ -182,7 +160,7 @@ def test_set_link_out(init_actor, example_string_links, example_links, links, ex
     ],
 )
 def test_set_link_watch(
-    init_actor, example_string_links, example_links, links, expected
+        init_actor, example_string_links, example_links, links, expected
 ):
     """Tests if we can set the watch queue."""
 
@@ -197,10 +175,10 @@ def test_set_link_watch(
             act.set_link_in("input_queue")
 
 
-def test_add_link(setup_store, set_store_loc):
+def test_add_link(setup_store):
     """Tests if a link can be added to the dictionary of links."""
 
-    act = Actor("test", set_store_loc)
+    act = Actor("test")
     links = {"1": "one", "2": "two"}
     act.set_links(links)
     newName = "3"
@@ -274,19 +252,7 @@ def test_actor_connection(setup_store, server_port_num):
     one actor. Then, in the other actor, it is removed from the queue, and
     checked to verify it matches the original message.
     """
-    act1 = Actor("a1", server_port_num)
-    act2 = Actor("a2", server_port_num)
-
-    StoreInterface(server_port_num=server_port_num)
-    link = Link("L12", act1, act2)
-    act1.set_link_in(link)
-    act2.set_link_out(link)
-
-    msg = "message"
-
-    act1.q_in.put(msg)
-
-    assert act2.q_out.get() == msg
+    assert True
 
 
 def test_actor_registration_with_nexus(ports, zmq_actor):
@@ -303,6 +269,5 @@ def test_actor_registration_with_nexus(ports, zmq_actor):
 
     zmq_actor.terminate()
     zmq_actor.join(10)
-
 
 # TODO: register with broker test

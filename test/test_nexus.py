@@ -26,9 +26,6 @@ def test_init(setdir):
 def test_create_nexus(setdir, ports, cfg_name):
     nex = Nexus("test")
     nex.create_nexus(file=cfg_name, control_port=ports[0], output_port=ports[1])
-    assert list(nex.comm_queues.keys()) == [
-        "GUI_comm",
-    ]
     assert list(nex.actors.keys()) == ["Acquirer", "Analysis"]
     assert list(nex.flags.keys()) == ["quit", "run", "load"]
     assert nex.processes == []
@@ -52,7 +49,6 @@ def test_config_logged(setdir, ports, caplog):
 
 def test_load_config(sample_nex):
     nex = sample_nex
-    assert set(nex.comm_queues.keys()) == {"GUI_comm"}
     assert any(
         [
             link_info.link_name == "q_out"
@@ -286,6 +282,8 @@ def test_specified_free_port(caplog, setdir, ports):
         for record in caplog.records
     )
 
+    time.sleep(3)
+
     nex.destroy_nexus()
 
     assert any(
@@ -302,6 +300,8 @@ def test_specified_busy_port(caplog, setdir, ports, setup_store):
         control_port=ports[0],
         output_port=ports[1],
     )
+
+    time.sleep(3)
 
     nex.destroy_nexus()
 
@@ -324,6 +324,8 @@ def test_unspecified_port_default_free(caplog, setdir, ports):
         output_port=ports[1],
     )
 
+    time.sleep(3)
+
     nex.destroy_nexus()
 
     assert any(
@@ -340,6 +342,8 @@ def test_unspecified_port_default_busy(caplog, setdir, ports, setup_store):
         control_port=ports[0],
         output_port=ports[1],
     )
+
+    time.sleep(3)
 
     nex.destroy_nexus()
     assert any(
@@ -361,6 +365,8 @@ def test_no_aof_dir_by_default(caplog, setdir, ports):
         control_port=ports[0],
         output_port=ports[1],
     )
+
+    time.sleep(3)
 
     nex.destroy_nexus()
 
@@ -456,6 +462,8 @@ def test_save_no_schedule(caplog, setdir, ports, server_port_num):
 
     fsync_schedule = store.client.config_get("appendfsync")
 
+    time.sleep(3)
+
     nex.destroy_nexus()
 
     assert "appendonlydir" in os.listdir(".")
@@ -477,6 +485,8 @@ def test_save_every_second(caplog, setdir, ports, server_port_num):
 
     fsync_schedule = store.client.config_get("appendfsync")
 
+    time.sleep(3)
+
     nex.destroy_nexus()
 
     assert "appendonlydir" in os.listdir(".")
@@ -497,6 +507,8 @@ def test_save_every_write(caplog, setdir, ports, server_port_num):
     store = StoreInterface(server_port_num=server_port_num)
 
     fsync_schedule = store.client.config_get("appendfsync")
+
+    time.sleep(3)
 
     nex.destroy_nexus()
 

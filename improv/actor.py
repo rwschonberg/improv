@@ -40,7 +40,7 @@ class AbstractActor:
     """
 
     def __init__(
-        self, name, store_loc=None, method="fork", store_port_num=None, *args, **kwargs
+        self, name, method="fork", store_port_num=None, *args, **kwargs
     ):
         """Require a name for multiple instances of the same actor/class
         Create initial empty dict of Links for easier referencing
@@ -50,7 +50,6 @@ class AbstractActor:
         self.links = {}
         self.method = method
         self.client = None
-        self.store_loc = store_loc
         self.lower_priority = False
         self.improv_logger = None
         self.store_port_num = store_port_num
@@ -81,10 +80,7 @@ class AbstractActor:
         # TODO: Where do we require this be run? Add a Signal and include in RM?
         if not self.client:
             store = None
-            if StoreInterface == improv.store.RedisStoreInterface:
-                store = StoreInterface(self.name, self.store_port_num)
-            else:
-                store = StoreInterface(self.name, self.store_loc)
+            store = StoreInterface(self.name, self.store_port_num)
             self.set_store_interface(store)
 
     def set_links(self, links):

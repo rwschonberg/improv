@@ -1,6 +1,6 @@
 import pytest
 
-from improv.store import StoreInterface, RedisStoreInterface
+from improv.store import StoreInterface, RedisStoreInterface, ObjectNotFoundError
 
 from scipy.sparse import csc_matrix
 import numpy as np
@@ -49,14 +49,13 @@ def test_is_csc_matrix_and_put(setup_store, server_port_num):
     assert isinstance(store.get(x), csc_matrix)
 
 
-@pytest.mark.skip
 def test_get_list_and_all(setup_store, server_port_num):
     store = StoreInterface(server_port_num=server_port_num)
-    # id = store.put(1, "one")
-    # id2 = store.put(2, "two")
-    # id3 = store.put(3, "three")
-    assert [1, 2] == store.getList(["one", "two"])
-    assert [1, 2, 3] == store.get_all()
+    id = store.put(1)
+    id2 = store.put(2)
+    id3 = store.put(3)
+    assert [1, 2] == store.get_list([id, id2])
+    assert [1, 2, 3] == sorted(store.get_all())
 
 
 def test_reset(setup_store, server_port_num):
@@ -78,10 +77,10 @@ def test_redis_put_one(setup_store, server_port_num):
     assert 1 == store.get(key)
 
 
-def test_getOne(setup_store, server_port_num):
-    store = StoreInterface(server_port_num=server_port_num)
-    id = store.put(1)
-    assert 1 == store.get(id)
+def test_redis_get_unknown_object(setup_store, server_port_num):
+    store = RedisStoreInterface(server_port_num=server_port_num)
+    with pytest.raises(ObjectNotFoundError):
+        store.get("unknown")
 
 
 def test_redis_get_one(setup_store, server_port_num):

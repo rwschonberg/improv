@@ -205,3 +205,79 @@ def test_config_harvester_enabled(set_configdir):
     cfg.config["settings"]["harvest_data_from_memory"] = True
     cfg.parse_config()
     assert cfg.settings["harvest_data_from_memory"]
+
+
+def test_config_redis_aof_enabled_saving_not_specified(set_configdir):
+    cfg = Config("minimal.yaml")
+    cfg.config = dict()
+    cfg.config["redis_config"] = dict()
+    cfg.config["redis_config"]["aof_dirname"] = "test"
+    cfg.parse_config()
+    assert cfg.redis_config["aof_dirname"] == "test"
+    assert cfg.redis_config["enable_saving"] is True
+
+
+def test_config_redis_ephemeral_dirname_enabled_saving_not_specified(set_configdir):
+    cfg = Config("minimal.yaml")
+    cfg.config = dict()
+    cfg.config["redis_config"] = dict()
+    cfg.config["redis_config"]["generate_ephemeral_aof_dirname"] = True
+    cfg.parse_config()
+    assert cfg.redis_config["generate_ephemeral_aof_dirname"] is True
+    assert cfg.redis_config["enable_saving"] is True
+
+def test_config_redis_ephemeral_dirname_and_aof_dirname_specified(set_configdir):
+    cfg = Config("minimal.yaml")
+    cfg.config = dict()
+    cfg.config["redis_config"] = dict()
+    cfg.config["redis_config"]["generate_ephemeral_aof_dirname"] = True
+    cfg.config["redis_config"]["aof_dirname"] = "test"
+    with pytest.raises(Exception):
+        cfg.parse_config()
+
+def test_config_redis_ephemeral_dirname_enabled_saving_disabled(set_configdir):
+    cfg = Config("minimal.yaml")
+    cfg.config = dict()
+    cfg.config["redis_config"] = dict()
+    cfg.config["redis_config"]["generate_ephemeral_aof_dirname"] = True
+    cfg.config["redis_config"]["enable_saving"] = False
+    with pytest.raises(Exception):
+        cfg.parse_config()
+
+
+def test_config_redis_aof_dirname_enabled_saving_disabled(set_configdir):
+    cfg = Config("minimal.yaml")
+    cfg.config = dict()
+    cfg.config["redis_config"] = dict()
+    cfg.config["redis_config"]["aof_dirname"] = "test"
+    cfg.config["redis_config"]["enable_saving"] = False
+    with pytest.raises(Exception):
+        cfg.parse_config()
+
+
+def test_config_redis_fsync_enabled_saving_disabled(set_configdir):
+    cfg = Config("minimal.yaml")
+    cfg.config = dict()
+    cfg.config["redis_config"] = dict()
+    cfg.config["redis_config"]["fsync_frequency"] = "always"
+    cfg.config["redis_config"]["enable_saving"] = False
+    with pytest.raises(Exception):
+        cfg.parse_config()
+
+
+def test_config_redis_unknown_fsync_freq(set_configdir):
+    cfg = Config("minimal.yaml")
+    cfg.config = dict()
+    cfg.config["redis_config"] = dict()
+    cfg.config["redis_config"]["fsync_frequency"] = "unknown"
+    with pytest.raises(Exception):
+        cfg.parse_config()
+
+
+def test_config_gui(set_configdir):
+    cfg = Config("minimal_gui.yaml")
+    cfg.parse_config()
+    cfg.create_config()
+
+    assert cfg.hasGUI is True
+    assert cfg.gui.classname == "Generator"

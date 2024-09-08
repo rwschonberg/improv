@@ -35,7 +35,6 @@ from improv.messaging import (
 from improv.store import StoreInterface, RedisStoreInterface
 from improv.actor import Signal, Actor, LinkInfo
 from improv.config import Config
-from improv.link import Link
 
 ASYNC_DEBUG = False
 
@@ -111,7 +110,6 @@ class Nexus:
         self.allow_setup = False
         self.outgoing_topics = dict()
         self.incoming_topics = dict()
-        self.comm_queues = {}
         self.sig_queues = {}
         self.data_queues = {}
         self.actors = {}
@@ -224,39 +222,34 @@ class Nexus:
         # create all data links requested from Config config
         self.create_connections()
 
-        if self.config.hasGUI:
-            # Have to load GUI first (at least with Caiman)
-            name = self.config.gui.name
-            m = self.config.gui  # m is ConfigModule
-            # treat GUI uniquely since user communication comes from here
-            try:
-                visualClass = m.options["visual"]
-                # need to instantiate this actor
-                visualActor = self.config.actors[visualClass]
-                self.create_actor(visualClass, visualActor)
-                # then add links for visual
-                for k, l in {
-                    key: self.data_queues[key]
-                    for key in self.data_queues.keys()
-                    if visualClass in key
-                }.items():
-                    self.assign_link(k, l)
-
-                # then give it to our GUI
-                self.create_actor(name, m)
-                self.actors[name].setup(visual=self.actors[visualClass])
-
-                self.p_GUI = Process(target=self.actors[name].run, name=name)
-                self.p_GUI.daemon = True
-                self.p_GUI.start()
-
-            except Exception as e:
-                logger.error(f"Exception in setting up GUI {name}: {e}")
-
-        else:
-            # have fake GUI for communications
-            q_comm = Link("GUI_comm", "GUI", self.name)
-            self.comm_queues.update({q_comm.name: q_comm})
+        # if self.config.hasGUI:
+        #     # Have to load GUI first (at least with Caiman)
+        #     name = self.config.gui.name
+        #     m = self.config.gui  # m is ConfigModule
+        #     # treat GUI uniquely since user communication comes from here
+        #     try:
+        #         visualClass = m.options["visual"]
+        #         # need to instantiate this actor
+        #         visualActor = self.config.actors[visualClass]
+        #         self.create_actor(visualClass, visualActor)
+        #         # then add links for visual
+        #         for k, l in {
+        #             key: self.data_queues[key]
+        #             for key in self.data_queues.keys()
+        #             if visualClass in key
+        #         }.items():
+        #             self.assign_link(k, l)
+        #
+        #         # then give it to our GUI
+        #         self.create_actor(name, m)
+        #         self.actors[name].setup(visual=self.actors[visualClass])
+        #
+        #         self.p_GUI = Process(target=self.actors[name].run, name=name)
+        #         self.p_GUI.daemon = True
+        #         self.p_GUI.start()
+        #
+        #     except Exception as e:
+        #         logger.error(f"Exception in setting up GUI {name}: {e}")
 
         # First set up each class/actor
         for name, actor in self.config.actors.items():

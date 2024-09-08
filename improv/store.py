@@ -56,7 +56,7 @@ class RedisStoreInterface(StoreInterface):
         # TODO this should scan for available ports, but only if configured to do so.
         # This happens when the config doesn't have Redis settings,
         # so we need to communicate this somehow to the StoreInterface here.
-        """Connect to the store at store_loc, max 20 retries to connect
+        """Connect to the store, max 20 retries to connect
         Raises exception if can't connect
         Returns the Redis client if successful
 
@@ -110,21 +110,11 @@ class RedisStoreInterface(StoreInterface):
             object: the object that was a
         """
         object_key = str(os.getpid()) + str(uuid.uuid4())
-        try:
-            # buffers would theoretically go here if we need to force out-of-band
-            # serialization for single objects
-            # TODO this will actually just silently fail if we use an existing
-            # TODO key; not sure it's worth the network overhead to check every
-            # TODO key twice every time. we still need a better solution for
-            # TODO this, but it will work now singlethreaded most of the time.
-            data = zlib.compress(
-                pickle.dumps(object, protocol=5), level=self.compression_level
-            )
+        data = zlib.compress(
+            pickle.dumps(object, protocol=5), level=self.compression_level
+        )
 
-            self.client.set(object_key, data, nx=True)
-        except Exception:
-            logger.error("Could not store object {}".format(object_key))
-            logger.error(traceback.format_exc())
+        self.client.set(object_key, data, nx=True)
 
         return object_key
 
@@ -147,11 +137,8 @@ class RedisStoreInterface(StoreInterface):
             return pickle.loads(zlib.decompress(object_value))
 
         logger.warning("Object {} cannot be found.".format(object_key))
-        raise ObjectNotFoundError
+        raise ObjectNotFoundError(object_key)
 
-    def subscribe(self, topic=REDIS_GLOBAL_TOPIC):
-        p = self.client.pubsub()
-        p.subscribe(topic)
 
     def get_list(self, ids):
         """Get multiple objects from the store
@@ -162,7 +149,7 @@ class RedisStoreInterface(StoreInterface):
         Returns:
             list of the objects
         """
-        return self.client.mget(ids)
+        return [pickle.loads(zlib.decompress(object_value)) for object_value in self.client.mget(ids)]
 
     def get_all(self):
         """Get a listing of all objects in the store.
@@ -172,7 +159,7 @@ class RedisStoreInterface(StoreInterface):
             list of all the objects in the store
         """
         all_keys = self.client.keys()  # defaults to "*" pattern, so will fetch all
-        return self.client.mget(all_keys)
+        return self.get_list(all_keys)
 
     def reset(self):
         """Reset client connection"""
@@ -180,9 +167,6 @@ class RedisStoreInterface(StoreInterface):
         logger.debug(
             "Reset local connection to store on port: {0}".format(self.server_port_num)
         )
-
-    def notify(self):
-        pass  # I don't see any call sites for this, so leaving it blank at the moment
 
 
 StoreInterface = RedisStoreInterface
@@ -217,12 +201,12 @@ class CannotGetObjectError(Exception):
 class CannotConnectToStoreInterfaceError(Exception):
     """Raised when failing to connect to store."""
 
-    def __init__(self, store_loc):
+    def __init__(self, store_port):
         super().__init__()
 
         self.name = "CannotConnectToStoreInterfaceError"
 
-        self.message = "Cannot connect to store at {}".format(str(store_loc))
+        self.message = "Cannot connect to store at {}".format(str(store_port))
 
     def __str__(self):
         return self.message
