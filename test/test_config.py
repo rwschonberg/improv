@@ -174,6 +174,8 @@ def test_save_actors_clean(set_configdir):
 
     assert savedKeys == originalKeys
 
+    os.remove("good_config_actors.yaml")
+
 
 def test_config_settings_read(set_configdir):
     cfg = Config("minimal_with_settings.yaml")
@@ -226,6 +228,7 @@ def test_config_redis_ephemeral_dirname_enabled_saving_not_specified(set_configd
     assert cfg.redis_config["generate_ephemeral_aof_dirname"] is True
     assert cfg.redis_config["enable_saving"] is True
 
+
 def test_config_redis_ephemeral_dirname_and_aof_dirname_specified(set_configdir):
     cfg = Config("minimal.yaml")
     cfg.config = dict()
@@ -234,6 +237,7 @@ def test_config_redis_ephemeral_dirname_and_aof_dirname_specified(set_configdir)
     cfg.config["redis_config"]["aof_dirname"] = "test"
     with pytest.raises(Exception):
         cfg.parse_config()
+
 
 def test_config_redis_ephemeral_dirname_enabled_saving_disabled(set_configdir):
     cfg = Config("minimal.yaml")

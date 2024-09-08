@@ -139,7 +139,6 @@ class RedisStoreInterface(StoreInterface):
         logger.warning("Object {} cannot be found.".format(object_key))
         raise ObjectNotFoundError(object_key)
 
-
     def get_list(self, ids):
         """Get multiple objects from the store
 
@@ -149,7 +148,10 @@ class RedisStoreInterface(StoreInterface):
         Returns:
             list of the objects
         """
-        return [pickle.loads(zlib.decompress(object_value)) for object_value in self.client.mget(ids)]
+        return [
+            pickle.loads(zlib.decompress(object_value))
+            for object_value in self.client.mget(ids)
+        ]
 
     def get_all(self):
         """Get a listing of all objects in the store.

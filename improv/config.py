@@ -150,11 +150,10 @@ class Config:
 
         # enable saving automatically if the user configured a saving option
         if (
-            (self.config["redis_config"]["aof_dirname"]
-             or self.config["redis_config"]["generate_ephemeral_aof_dirname"]
-             or self.config["redis_config"]["fsync_frequency"])
-            and self.config["redis_config"]["enable_saving"] is None
-        ):
+            self.config["redis_config"]["aof_dirname"]
+            or self.config["redis_config"]["generate_ephemeral_aof_dirname"]
+            or self.config["redis_config"]["fsync_frequency"]
+        ) and self.config["redis_config"]["enable_saving"] is None:
             self.config["redis_config"]["enable_saving"] = True
 
         if "port" not in self.config["redis_config"]:
@@ -162,8 +161,8 @@ class Config:
 
     def validate_redis_config(self):
         if (
-                self.config["redis_config"]["aof_dirname"]
-                and self.config["redis_config"]["generate_ephemeral_aof_dirname"]
+            self.config["redis_config"]["aof_dirname"]
+            and self.config["redis_config"]["generate_ephemeral_aof_dirname"]
         ):
             logger.error(
                 "Cannot both generate a unique dirname and use the one provided."
@@ -171,9 +170,9 @@ class Config:
             raise Exception("Cannot use unique dirname and use the one provided.")
 
         if (
-                self.config["redis_config"]["aof_dirname"]
-                or self.config["redis_config"]["generate_ephemeral_aof_dirname"]
-                or self.config["redis_config"]["fsync_frequency"]
+            self.config["redis_config"]["aof_dirname"]
+            or self.config["redis_config"]["generate_ephemeral_aof_dirname"]
+            or self.config["redis_config"]["fsync_frequency"]
         ):
             if not self.config["redis_config"]["enable_saving"]:
                 logger.error(

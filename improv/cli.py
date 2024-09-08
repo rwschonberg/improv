@@ -262,15 +262,15 @@ def run_cleanup(args, headless=False):
 
         if res.lower() == "y":
             for proc in proc_list:
-                if not proc.status() == psutil.STATUS_STOPPED:
-                    logging.info(
-                        f"process {proc.pid} {proc.name()}"
-                        f" has status {proc.status()}. Interrupting."
-                    )
-                    try:
+                try:
+                    if not proc.status() == psutil.STATUS_STOPPED:
+                        logging.info(
+                            f"process {proc.pid} {proc.name()}"
+                            f" has status {proc.status()}. Interrupting."
+                        )
                         proc.send_signal(signal.SIGINT)
-                    except psutil.NoSuchProcess:
-                        pass
+                except psutil.NoSuchProcess:
+                    pass
             gone, alive = psutil.wait_procs(proc_list, timeout=3)
             for p in alive:
                 try:

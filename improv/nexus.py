@@ -1052,35 +1052,37 @@ class Nexus:
         """Internal method to kill the subprocess
         running the message broker
         """
-        try:
-            self.p_broker.terminate()
-            self.p_broker.join(timeout=5)
-            if self.p_broker.exitcode is None:
-                self.p_broker.kill()
-                logger.error("Killed broker process")
-            else:
-                logger.info(
-                    "Broker shutdown successful with exit code {}".format(
-                        self.p_broker.exitcode
+        if self.p_broker:
+            try:
+                self.p_broker.terminate()
+                self.p_broker.join(timeout=5)
+                if self.p_broker.exitcode is None:
+                    self.p_broker.kill()
+                    logger.error("Killed broker process")
+                else:
+                    logger.info(
+                        "Broker shutdown successful with exit code {}".format(
+                            self.p_broker.exitcode
+                        )
                     )
-                )
-        except Exception as e:
-            logger.exception(f"Unable to close broker {e}")
+            except Exception as e:
+                logger.exception(f"Unable to close broker {e}")
 
     def _shutdown_logger(self):
         """Internal method to kill the subprocess
         running the logger
         """
-        try:
-            self.p_logger.terminate()
-            self.p_logger.join(timeout=5)
-            if self.p_logger.exitcode is None:
-                self.p_logger.kill()
-                logger.error("Killed logger process")
-            else:
-                logger.info("Logger shutdown successful")
-        except Exception as e:
-            logger.exception(f"Unable to close logger: {e}")
+        if self.p_logger:
+            try:
+                self.p_logger.terminate()
+                self.p_logger.join(timeout=5)
+                if self.p_logger.exitcode is None:
+                    self.p_logger.kill()
+                    logger.error("Killed logger process")
+                else:
+                    logger.info("Logger shutdown successful")
+            except Exception as e:
+                logger.exception(f"Unable to close logger: {e}")
 
     def _shutdown_harvester(self):
         """Internal method to kill the subprocess

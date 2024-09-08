@@ -285,6 +285,7 @@ def test_rep_get(test_rep_link, message, timeout):
 
     assert link.get(timeout=timeout) == expected
 
+
 def test_get_empty(test_sub_link):
     """Tests if get blocks if the queue is empty."""
 

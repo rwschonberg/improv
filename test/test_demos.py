@@ -38,6 +38,12 @@ def ip():
     return pytest.ip
 
 
+@pytest.fixture
+def unused_tcp_port():
+    pytest.unused_tcp_port = 5555
+    return pytest.unused_tcp_port
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("dir", "configfile", "logfile"),

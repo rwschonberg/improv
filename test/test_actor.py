@@ -39,9 +39,7 @@ def example_links(setup_store, server_port_num):
     ctx = zmq.Context()
     s = ctx.socket(zmq.PUSH)
 
-    links = [
-        ZmqLink(s, "test") for i in range(2)
-    ]
+    links = [ZmqLink(s, "test") for i in range(2)]
     link_dict = {links[i].name: links[i] for i, l in enumerate(links)}
     pytest.example_links = link_dict
     yield pytest.example_links
@@ -160,7 +158,7 @@ def test_set_link_out(init_actor, example_string_links, example_links, links, ex
     ],
 )
 def test_set_link_watch(
-        init_actor, example_string_links, example_links, links, expected
+    init_actor, example_string_links, example_links, links, expected
 ):
     """Tests if we can set the watch queue."""
 
@@ -269,5 +267,6 @@ def test_actor_registration_with_nexus(ports, zmq_actor):
 
     zmq_actor.terminate()
     zmq_actor.join(10)
+
 
 # TODO: register with broker test
