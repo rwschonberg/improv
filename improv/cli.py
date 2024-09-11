@@ -224,7 +224,12 @@ def run_server(args):
         f"({control_port}, {output_port}, {log_port}).\n"
         f"Press Ctrl-C to quit."
     )
-    server.start_nexus(server.poll_queues, poll_function=server.poll_kernel)
+    try:
+        server.start_nexus(server.poll_queues, poll_function=server.poll_kernel)
+    except Exception as e:
+        print(f"CLI-started server run encountered uncaught error {e}")
+        logging.error(f"CLI-started server run encountered uncaught error {e}")
+        raise e
 
     if args.actor_path:
         for p in args.actor_path:
