@@ -160,6 +160,11 @@ class Config:
             self.config["redis_config"]["port"] = 6379
 
     def validate_redis_config(self):
+        fsync_name_dict = {
+            "every_write": "always",
+            "every_second": "everysec",
+            "no_schedule": "no"
+        }
         if (
             self.config["redis_config"]["aof_dirname"]
             and self.config["redis_config"]["generate_ephemeral_aof_dirname"]
@@ -193,6 +198,13 @@ class Config:
             raise Exception(
                 f'Cannot use unknown fsync frequency {self.config["redis_config"]["fsync_frequency"]}'
             )
+
+        if self.config["redis_config"]["fsync_frequency"] is None:
+            self.config["redis_config"]["fsync_frequency"] = "no_schedule"
+
+        self.config["redis_config"]["fsync_frequency"] = (
+            fsync_name_dict)[self.config["redis_config"]["fsync_frequency"]]
+
 
 
 class ConfigModule:

@@ -19,6 +19,7 @@ LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.DEBUG)
 
 SERVER_WARMUP = 10
+UNUSED_TCP_PORT = 10567
 
 
 @pytest.fixture
@@ -40,8 +41,10 @@ def ip():
 
 @pytest.fixture
 def unused_tcp_port():
-    pytest.unused_tcp_port = 5555
-    return pytest.unused_tcp_port
+    global UNUSED_TCP_PORT
+    pytest.unused_tcp_port = UNUSED_TCP_PORT
+    yield pytest.unused_tcp_port
+    UNUSED_TCP_PORT +=1
 
 
 @pytest.mark.asyncio

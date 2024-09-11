@@ -224,7 +224,7 @@ def run_server(args):
         f"({control_port}, {output_port}, {log_port}).\n"
         f"Press Ctrl-C to quit."
     )
-    server.start_nexus()
+    server.start_nexus(server.poll_queues, poll_function=server.poll_kernel)
 
     if args.actor_path:
         for p in args.actor_path:

@@ -14,6 +14,7 @@ from datetime import datetime
 from multiprocessing import Process, get_context
 from importlib import import_module
 
+import zmq as zmq_sync
 import zmq.asyncio as zmq
 from zmq import PUB, REP, REQ, SocketOption
 
@@ -41,20 +42,7 @@ ASYNC_DEBUG = False
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-
-# TODO: actors should retry setup/state comms every N seconds
-#  nexus should be able to poll actors for state
-#  (and send them state updates?) helpful for getting
-#  stragglers through config
-
-# TODO: nexus actually only really provides information to actors.
-#  in this way, we can actually just allow arbitrary actors to connect,
-#  send nexus their information, and get a reply back of the broker and
-#  logger ports. long-term plan though.
-
 # TODO: redo docsctrings since things are pretty different now
-
-# TODO: actor shutdown shouldn't use attributes in case of none-type exceptions
 
 # TODO: rethink nexus shutdown semantics (getting to take quite a long time)
 
@@ -63,15 +51,23 @@ logger.setLevel(logging.DEBUG)
 # TODO: socket polling needs to be done for all recv calls;
 #  these could potentially block
 
+# TODO: redo how actors register with nexus so that we get actor states
+#   earlier
+
 
 class ConfigFileNotProvidedException(Exception):
     def __init__(self):
         super().__init__("Config file not provided")
 
 
+class ConfigFileNotValidException(Exception):
+    def __init__(self):
+        super().__init__("Config file not valid")
+
+
 class ActorState:
     def __init__(
-        self, actor_name, status, nexus_in_port, hostname="localhost", sig_socket=None
+            self, actor_name, status, nexus_in_port, hostname="localhost", sig_socket=None
     ):
         self.actor_name = actor_name
         self.status = status
@@ -84,9 +80,10 @@ class Nexus:
     """Main server class for handling objects in improv"""
 
     def __init__(self, name="Server"):
+        self.zmq_sync_context: zmq_sync.Context | None = None
         self.logfile: str | None = None
         self.p_harvester: multiprocessing.Process | None = None
-        self.actor_in_port: int | None = None
+        self.p_broker: multiprocessing.Process | None = None
         self.actor_in_socket_port: int | None = None
         self.actor_in_socket: zmq.Socket | None = None
         self.in_socket: zmq.Socket | None = None
@@ -100,7 +97,7 @@ class Nexus:
         self.broker_sub_port = None
         self.broker_in_port = None
         self.broker_in_socket = None
-        self.actor_states: dict[str, ActorState] = dict()
+        self.actor_states: dict[str, ActorState | None] = dict()
         self.redis_fsync_frequency = None
         self.store = None
         self.config = None
@@ -110,7 +107,6 @@ class Nexus:
         self.allow_setup = False
         self.outgoing_topics = dict()
         self.incoming_topics = dict()
-        self.sig_queues = {}
         self.data_queues = {}
         self.actors = {}
         self.flags = {}
@@ -120,14 +116,14 @@ class Nexus:
         return self.name
 
     def create_nexus(
-        self,
-        file=None,
-        store_size=None,
-        control_port=None,
-        output_port=None,
-        log_server_pub_port=None,
-        actor_in_port=None,
-        logfile="global.log",
+            self,
+            file=None,
+            store_size=None,
+            control_port=None,
+            output_port=None,
+            log_server_pub_port=None,
+            actor_in_port=None,
+            logfile="global.log",
     ):
         """Function to initialize class variables based on config file.
 
@@ -218,6 +214,8 @@ class Nexus:
                 "An error occurred when loading the configuration file. "
                 "Please see the log file for more details."
             )
+            self.destroy_nexus()
+            raise ConfigFileNotValidException
 
         # create all data links requested from Config config
         self.create_connections()
@@ -261,11 +259,12 @@ class Nexus:
                 except Exception as e:
                     logger.error(f"Exception in setting up actor {name}: {e}.")
                     self.quit()
+                    raise e
 
         # Second set up each connection b/t actors
         # TODO: error handling for if a user tries to use q_in without defining it
-        for name, link in self.data_queues.items():
-            self.assign_link(name, link)
+        # for name, link in self.data_queues.items():
+        #     self.assign_link(name, link)
 
     def configure_redis_persistence(self):
         # invalid configs: specifying filename and using an ephemeral filename,
@@ -274,25 +273,8 @@ class Nexus:
         generate_unique_dirname = self.config.redis_config[
             "generate_ephemeral_aof_dirname"
         ]
-        redis_saving_enabled = self.config.redis_config["enable_saving"]
-        redis_fsync_frequency = self.config.redis_config["fsync_frequency"]
-
-        self.redis_saving_enabled = redis_saving_enabled
-
-        # TODO: this should just go away, and we can expose the names directly in docs
-
-        if redis_fsync_frequency is None:
-            redis_fsync_frequency = "no_schedule"
-
-        if redis_fsync_frequency == "every_write":
-            self.redis_fsync_frequency = "always"
-        elif redis_fsync_frequency == "every_second":
-            self.redis_fsync_frequency = "everysec"
-        elif redis_fsync_frequency == "no_schedule":
-            self.redis_fsync_frequency = "no"
-        else:
-            logger.error("Unknown fsync frequency ", redis_fsync_frequency)
-            raise Exception("Unknown fsync frequency ", redis_fsync_frequency)
+        self.redis_saving_enabled = self.config.redis_config["enable_saving"]
+        self.redis_fsync_frequency = self.config.redis_config["fsync_frequency"]
 
         if aof_dirname:
             self.aof_dir = aof_dirname
@@ -317,7 +299,7 @@ class Nexus:
 
         return
 
-    def start_nexus(self):
+    def start_nexus(self, serve_function, *args, **kwargs):
         """
         Puts all actors in separate processes and begins polling
         to listen to comm queues
@@ -345,7 +327,7 @@ class Nexus:
         res = ""
         try:
             self.out_socket.send_string("Awaiting input:")
-            res = loop.run_until_complete(self.poll_queues())
+            res = loop.run_until_complete(self.serve(serve_function, *args, **kwargs))
         except asyncio.CancelledError:
             logger.info("Loop is cancelled")
 
@@ -356,8 +338,8 @@ class Nexus:
 
         logger.info(f"Current loop: {asyncio.get_event_loop()}")
 
-        loop.stop()
-        loop.close()
+        # loop.stop()
+        # loop.close()
         logger.info("Shutdown loop")
 
     def start(self):
@@ -392,12 +374,14 @@ class Nexus:
             self.logger_in_socket.close(linger=0)
         if self.zmq_context:
             self.zmq_context.destroy(linger=0)
+        if self.zmq_sync_context:
+            self.zmq_sync_context.destroy(linger=0)
 
         self._shutdown_broker()
         self._shutdown_harvester()
         self._shutdown_logger()
 
-    async def poll_queues(self):
+    async def poll_queues(self, poll_function, *args, **kwargs):
         """
         Listens to links and processes their signals.
 
@@ -437,23 +421,7 @@ class Nexus:
         logger.info("Nexus signal handler added")
 
         while not self.flags["quit"]:
-            try:
-                done, pending = await asyncio.wait(
-                    self.tasks, return_when=concurrent.futures.FIRST_COMPLETED
-                )
-            except asyncio.CancelledError:
-                pass
-
-            # sort through tasks to see where we got input from
-            # (so we can choose a handler)
-            for i, t in enumerate(self.tasks):
-                if i == 0:
-                    if t in done:
-                        self.tasks[i] = asyncio.create_task(
-                            self.process_actor_message()
-                        )
-                elif t in done:
-                    self.tasks[i] = asyncio.create_task(self.remote_input())
+            await poll_function(*args, **kwargs)
 
         return "Shutting Down"
 
@@ -517,10 +485,10 @@ class Nexus:
         )
 
         if all(
-            [
-                actor_state is not None and actor_state.status == Signal.ready()
-                for actor_state in self.actor_states.values()
-            ]
+                [
+                    actor_state is not None and actor_state.status == Signal.ready()
+                    for actor_state in self.actor_states.values()
+                ]
         ):
             self.allowStart = True
 
@@ -542,19 +510,19 @@ class Nexus:
                     )
                 )
             if (not self.allow_setup) and all(
-                [
-                    actor_state is not None and actor_state.status == Signal.waiting()
-                    for actor_state in self.actor_states.values()
-                ]
+                    [
+                        actor_state is not None and actor_state.status == Signal.waiting()
+                        for actor_state in self.actor_states.values()
+                    ]
             ):
                 logger.info("All actors connected to Nexus. Allowing setup.")
                 self.allow_setup = True
 
             if (not self.allowStart) and all(
-                [
-                    actor_state is not None and actor_state.status == Signal.ready()
-                    for actor_state in self.actor_states.values()
-                ]
+                    [
+                        actor_state is not None and actor_state.status == Signal.ready()
+                        for actor_state in self.actor_states.values()
+                    ]
             ):
                 logger.info("All actors ready. Allowing run.")
                 self.allowStart = True
@@ -588,12 +556,11 @@ class Nexus:
                 done, pending = await asyncio.wait(task)
                 while len(done) == 0:
                     done, pending = await asyncio.wait(task)
-
-                await self.stop_polling_and_quit(Signal.quit())
                 self.flags["quit"] = True
             elif flag[0] == Signal.load():
                 logger.info("Loading Config config from file " + flag[1])
-                self.load_config(flag[1])
+                self.config = Config(flag[1])
+                self.config.parse_config()
             elif flag[0] == Signal.pause():
                 logger.info("Pausing processes")
                 # TODO. Also resume, reset
@@ -672,14 +639,6 @@ class Nexus:
     def quit(self):
         logger.warning("Killing child processes")
         self.out_socket.send_string("QUIT")
-
-        for q in self.sig_queues.values():
-            try:
-                q.put_nowait(Signal.quit())
-            except Full:
-                logger.warning("Signal queue {} full, cannot quit".format(q.name))
-            except FileNotFoundError:
-                logger.warning("Queue {} corrupted.".format(q.name))
 
         if self.config.hasGUI:
             self.processes.append(self.p_GUI)
@@ -841,7 +800,7 @@ class Nexus:
             ]
             logger.info("Redis persistence directory set to {}".format(self.aof_dir))
         elif (
-            self.redis_saving_enabled
+                self.redis_saving_enabled
         ):  # just use the (possibly preexisting) default aof dir
             subprocess_command += [
                 "--appendonly",
@@ -998,7 +957,7 @@ class Nexus:
         else:
             self.actors[classname].add_link(linktype, link)
 
-    async def start_logger(self, log_server_pub_port):
+    def start_logger(self, log_server_pub_port):
         self.p_logger = multiprocessing.Process(
             target=bootstrap_log_server,
             args=(
@@ -1019,14 +978,14 @@ class Nexus:
             self.quit()
             raise Exception("Could not start log server.")
 
-        logger_info: LogInfoMsg = await self.broker_in_socket.recv_pyobj()
+        logger_info: LogInfoMsg = self.broker_in_socket.recv_pyobj()
         self.logger_pull_port = logger_info.pull_port
         self.logger_pub_port = logger_info.pub_port
-        await self.broker_in_socket.send_pyobj(
+        self.broker_in_socket.send_pyobj(
             LogInfoReplyMsg(logger_info.name, "OK", "registered logger information")
         )
 
-    async def start_message_broker(self):
+    def start_message_broker(self):
         self.p_broker = multiprocessing.Process(
             target=bootstrap_broker, args=("localhost", self.broker_in_port)
         )
@@ -1041,10 +1000,10 @@ class Nexus:
             self.quit()
             raise Exception("Could not start message broker server.")
 
-        broker_info: BrokerInfoMsg = await self.broker_in_socket.recv_pyobj()
+        broker_info: BrokerInfoMsg = self.broker_in_socket.recv_pyobj()
         self.broker_sub_port = broker_info.sub_port
         self.broker_pub_port = broker_info.pub_port
-        await self.broker_in_socket.send_pyobj(
+        self.broker_in_socket.send_pyobj(
             BrokerInfoReplyMsg(broker_info.name, "OK", "registered broker information")
         )
 
@@ -1121,7 +1080,9 @@ class Nexus:
         )
         self.actor_in_socket_port = int(in_port_string.split(":")[-1])
 
-        self.broker_in_socket = self.zmq_context.socket(REP)
+        self.zmq_sync_context = zmq_sync.Context()
+        self.zmq_sync_context.setsockopt(SocketOption.LINGER, 0)
+        self.broker_in_socket = self.zmq_sync_context.socket(REP)
         self.broker_in_socket.bind("tcp://*:0")
         broker_in_port_string = self.broker_in_socket.getsockopt_string(
             SocketOption.LAST_ENDPOINT
@@ -1129,13 +1090,9 @@ class Nexus:
         self.broker_in_port = int(broker_in_port_string.split(":")[-1])
 
     def start_improv_services(self, log_server_pub_port, store_size):
-        loop = asyncio.get_event_loop()
-        if ASYNC_DEBUG:  # this is just for debugging so doesn't have to be tested
-            loop.set_debug(True)
-
-        loop.run_until_complete(self.start_logger(log_server_pub_port))
+        self.start_logger(log_server_pub_port)
         logger.addHandler(log.ZmqLogHandler("localhost", self.logger_pull_port))
-        loop.run_until_complete(self.start_message_broker())
+        self.start_message_broker()
 
         self.configure_redis_persistence()
 
@@ -1146,7 +1103,7 @@ class Nexus:
         self.out_socket.send_string("StoreInterface started")
 
         if self.config.settings["harvest_data_from_memory"]:
-            loop.run_until_complete(self.start_harvester)
+            self.start_harvester()
 
         # connect to store and subscribe to notifications
         logger.info("Create new store object")
@@ -1154,7 +1111,7 @@ class Nexus:
         logger.info(f"Redis server connected on port {self.store_port}")
 
     def apply_cli_config_overrides(
-        self, store_size, control_port, output_port, actor_in_port
+            self, store_size, control_port, output_port, actor_in_port
     ):
         if store_size is not None:
             self.config.settings["store_size"] = store_size
@@ -1165,7 +1122,7 @@ class Nexus:
         if actor_in_port is not None:
             self.config.settings["actor_in_port"] = actor_in_port
 
-    async def start_harvester(self):
+    def start_harvester(self):
         self.p_harvester = multiprocessing.Process(
             target=bootstrap_harvester,
             args=(
@@ -1190,9 +1147,32 @@ class Nexus:
             self.quit()
             raise Exception("Could not start harvester server.")
 
-        harvester_info: HarvesterInfoMsg = await self.broker_in_socket.recv_pyobj()
-        await self.broker_in_socket.send_pyobj(
+        harvester_info: HarvesterInfoMsg = self.broker_in_socket.recv_pyobj()
+        self.broker_in_socket.send_pyobj(
             HarvesterInfoReplyMsg(
                 harvester_info.name, "OK", "registered harvester information"
             )
         )
+        logger.info("Harvester server started")
+
+    async def serve(self, serve_function, *args, **kwargs):
+        await serve_function(*args, **kwargs)
+
+    async def poll_kernel(self):
+        try:
+            done, pending = await asyncio.wait(
+                self.tasks, return_when=concurrent.futures.FIRST_COMPLETED
+            )
+        except asyncio.CancelledError:
+            pass
+
+        # sort through tasks to see where we got input from
+        # (so we can choose a handler)
+        for i, t in enumerate(self.tasks):
+            if i == 0:
+                if t in done:
+                    self.tasks[i] = asyncio.create_task(
+                        self.process_actor_message()
+                    )
+            elif t in done:
+                self.tasks[i] = asyncio.create_task(self.remote_input())

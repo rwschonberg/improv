@@ -6,8 +6,11 @@ import os
 import pytest
 import logging
 
+import zmq
+
 from improv.config import CannotCreateConfigException
-from improv.nexus import Nexus, ConfigFileNotProvidedException
+from improv.messaging import ActorStateMsg
+from improv.nexus import Nexus, ConfigFileNotProvidedException, ConfigFileNotValidException
 from improv.store import StoreInterface
 
 
@@ -76,12 +79,13 @@ def test_argument_config_precedence(setdir, ports):
 
 
 # delete this comment later
-@pytest.mark.skip(reason="unfinished")
 def test_start_nexus(sample_nex):
+    async def set_quit_flag(test_nex):
+        test_nex.flags["quit"] = True
+
     nex = sample_nex
-    nex.start_nexus()
+    nex.start_nexus(nex.poll_queues, poll_function=set_quit_flag, test_nex=nex)
     assert [p.name for p in nex.processes] == ["Acquirer", "Analysis"]
-    nex.destroy_nexus()
 
 
 @pytest.mark.skip(
@@ -91,19 +95,19 @@ def test_start_nexus(sample_nex):
     ("cfg_name", "actor_list", "link_list"),
     [
         (
-            "good_config.yaml",
-            ["Acquirer", "Analysis"],
-            ["Acquirer_sig", "Analysis_sig"],
+                "good_config.yaml",
+                ["Acquirer", "Analysis"],
+                ["Acquirer_sig", "Analysis_sig"],
         ),
         (
-            "simple_graph.yaml",
-            ["Acquirer", "Analysis"],
-            ["Acquirer_sig", "Analysis_sig"],
+                "simple_graph.yaml",
+                ["Acquirer", "Analysis"],
+                ["Acquirer_sig", "Analysis_sig"],
         ),
         (
-            "complex_graph.yaml",
-            ["Acquirer", "Analysis", "InputStim"],
-            ["Acquirer_sig", "Analysis_sig", "InputStim_sig"],
+                "complex_graph.yaml",
+                ["Acquirer", "Analysis", "InputStim"],
+                ["Acquirer_sig", "Analysis_sig", "InputStim_sig"],
         ),
     ],
 )
@@ -123,14 +127,11 @@ def test_config_construction(cfg_name, actor_list, link_list, setdir, ports):
     # Check for actors
 
     act_lst = list(nex.actors)
-    lnk_lst = list(nex.sig_queues)
 
     nex.destroy_nexus()
 
     assert actor_list == act_lst
-    assert link_list == lnk_lst
     act_lst = []
-    lnk_lst = []
     assert True
 
 
@@ -261,6 +262,157 @@ def test_close_store(caplog):
 
     nex.destroy_nexus()
     assert True
+
+
+def test_start_harvester(caplog, setdir, ports):
+    nex = Nexus("test")
+    nex.create_nexus(
+        file="minimal_harvester.yaml",
+        store_size=10000000,
+        control_port=ports[0],
+        output_port=ports[1],
+    )
+
+    time.sleep(3)
+
+    nex.destroy_nexus()
+
+    assert any(
+        "Harvester server started" in record.msg
+        for record in caplog.records
+    )
+
+def test_process_actor_state_update(caplog, setdir, ports):
+    nex = Nexus("test")
+    nex.create_nexus(
+        file="minimal_harvester.yaml",
+        store_size=10000000,
+        control_port=ports[0],
+        output_port=ports[1],
+    )
+
+    time.sleep(3)
+
+    new_actor_message = ActorStateMsg(
+        "test actor",
+        "waiting",
+        1234,
+        "test info"
+    )
+
+    nex.process_actor_state_update(new_actor_message)
+    assert "test actor" in nex.actor_states
+    assert nex.actor_states["test actor"].actor_name == new_actor_message.actor_name
+    assert nex.actor_states["test actor"].nexus_in_port == new_actor_message.nexus_in_port
+    assert nex.actor_states["test actor"].status == new_actor_message.status
+
+    update_actor_message = ActorStateMsg(
+        "test actor",
+        "waiting",
+        1234,
+        "test info"
+    )
+
+    nex.process_actor_state_update(update_actor_message)
+
+    nex.destroy_nexus()
+    assert any(
+        "Received state message from new actor test actor" in record.msg
+        for record in caplog.records
+    )
+    assert any(
+        "Received state message from actor test actor" in record.msg
+        for record in caplog.records
+    )
+
+
+def test_process_actor_state_update_allows_run(caplog, setdir, ports):
+    nex = Nexus("test")
+    nex.create_nexus(
+        file="minimal_harvester.yaml",
+        store_size=10000000,
+        control_port=ports[0],
+        output_port=ports[1],
+    )
+
+    time.sleep(3)
+
+    nex.actor_states["test actor1"] = None
+    nex.actor_states["test actor2"] = None
+
+    actor1_message = ActorStateMsg(
+        "test actor1",
+        "ready",
+        1234,
+        "test info"
+    )
+
+    nex.process_actor_state_update(actor1_message)
+    assert "test actor1" in nex.actor_states
+    assert nex.actor_states["test actor1"].actor_name == actor1_message.actor_name
+    assert nex.actor_states["test actor1"].nexus_in_port == actor1_message.nexus_in_port
+    assert nex.actor_states["test actor1"].status == actor1_message.status
+
+    assert not nex.allowStart
+
+    actor2_message = ActorStateMsg(
+        "test actor2",
+        "ready",
+        5678,
+        "test info2"
+    )
+
+    nex.process_actor_state_update(actor2_message)
+    assert "test actor2" in nex.actor_states
+    assert nex.actor_states["test actor2"].actor_name == actor2_message.actor_name
+    assert nex.actor_states["test actor2"].nexus_in_port == actor2_message.nexus_in_port
+    assert nex.actor_states["test actor2"].status == actor2_message.status
+
+    nex.destroy_nexus()
+    assert nex.allowStart
+
+
+@pytest.mark.asyncio
+async def test_process_actor_message(caplog, setdir, ports):
+    nex = Nexus("test")
+    nex.create_nexus(
+        file="minimal_harvester.yaml",
+        store_size=10000000,
+        control_port=ports[0],
+        output_port=ports[1],
+    )
+
+    time.sleep(3)
+
+    nex.actor_states["test actor1"] = None
+    nex.actor_states["test actor2"] = None
+
+    actor1_message = ActorStateMsg(
+        "test actor1",
+        "ready",
+        1234,
+        "test info"
+    )
+
+    ctx = nex.zmq_context
+    s = ctx.socket(zmq.REQ)
+    s.connect(f"tcp://localhost:{nex.actor_in_socket_port}")
+
+    s.send_pyobj(actor1_message)
+
+    await nex.process_actor_message()
+
+    nex.process_actor_state_update(actor1_message)
+    assert "test actor1" in nex.actor_states
+    assert nex.actor_states["test actor1"].actor_name == actor1_message.actor_name
+    assert nex.actor_states["test actor1"].nexus_in_port == actor1_message.nexus_in_port
+    assert nex.actor_states["test actor1"].status == actor1_message.status
+
+    s.close(linger=0)
+    nex.destroy_nexus()
+
+    assert not nex.allowStart
+
 
 
 def test_specified_free_port(caplog, setdir, ports):
@@ -612,3 +764,15 @@ def test_nexus_create_nexus_no_cfg_file(ports):
 #         actor_in_port=ports[2],
 #     )
 #     nex.start_nexus()
+
+
+def test_nexus_bad_config_actor_args(setdir):
+    nex = Nexus("test")
+    with pytest.raises(ConfigFileNotValidException):
+        nex.create_nexus("bad_args.yaml")
+
+
+def test_nexus_no_config_file():
+    nex = Nexus("test")
+    with pytest.raises(ConfigFileNotProvidedException):
+        nex.create_nexus()
