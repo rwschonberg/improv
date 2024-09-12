@@ -973,8 +973,10 @@ class Nexus:
                 log_server_pub_port,
             ),
         )
+        logger.info("logger created")
         self.p_logger.start()
         time.sleep(1)
+        logger.info("logger started")
         if not self.p_logger.is_alive():
             logger.error(
                 "Logger process failed to start. "
@@ -983,20 +985,23 @@ class Nexus:
             )
             self.quit()
             raise Exception("Could not start log server.")
-
+        logger.info("logger is alive")
         logger_info: LogInfoMsg = self.broker_in_socket.recv_pyobj()
         self.logger_pull_port = logger_info.pull_port
         self.logger_pub_port = logger_info.pub_port
         self.broker_in_socket.send_pyobj(
             LogInfoReplyMsg(logger_info.name, "OK", "registered logger information")
         )
+        logger.info("logger replied with setup message")
 
     def start_message_broker(self):
         self.p_broker = multiprocessing.Process(
             target=bootstrap_broker, args=("localhost", self.broker_in_port)
         )
+        logger.info("broker created")
         self.p_broker.start()
         time.sleep(1)
+        logger.info("broker started")
         if not self.p_broker.is_alive():
             logger.error(
                 "Broker process failed to start. "
@@ -1005,13 +1010,14 @@ class Nexus:
             )
             self.quit()
             raise Exception("Could not start message broker server.")
-
+        logger.info("broker is alive")
         broker_info: BrokerInfoMsg = self.broker_in_socket.recv_pyobj()
         self.broker_sub_port = broker_info.sub_port
         self.broker_pub_port = broker_info.pub_port
         self.broker_in_socket.send_pyobj(
             BrokerInfoReplyMsg(broker_info.name, "OK", "registered broker information")
         )
+        logger.info("broker replied with setup message")
 
     def _shutdown_broker(self):
         """Internal method to kill the subprocess
