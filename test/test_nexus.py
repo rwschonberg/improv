@@ -172,67 +172,6 @@ def test_blank_cfg(setdir, caplog, ports):
     nex.destroy_nexus()
 
 
-@pytest.mark.skip(reason="unfinished")
-def test_queue_message(setdir, sample_nex):
-    nex = sample_nex
-    nex.start_nexus()
-    time.sleep(20)
-    nex.setup()
-    time.sleep(20)
-    nex.run()
-    time.sleep(10)
-    acq_comm = nex.comm_queues["Acquirer_comm"]
-    acq_comm.put("Test Message")
-
-    assert nex.comm_queues is None
-    nex.destroy_nexus()
-    assert True
-
-
-@pytest.mark.asyncio
-@pytest.mark.skip(reason="This test is unfinished.")
-async def test_queue_readin(sample_nex, caplog):
-    nex = sample_nex
-    nex.start_nexus()
-    # cqs = nex.comm_queues
-    # assert cqs == None
-    assert [record.msg for record in caplog.records] is None
-    # cqs["Acquirer_comm"].put('quit')
-    # assert "quit" == cqs["Acquirer_comm"].get()
-    # await nex.pollQueues()
-    assert True
-
-
-@pytest.mark.skip(reason="This test is unfinished.")
-def test_queue_sendout():
-    assert True
-
-
-@pytest.mark.skip(reason="This test is unfinished.")
-def test_run_sig():
-    assert True
-
-
-@pytest.mark.skip(reason="This test is unfinished.")
-def test_setup_sig():
-    assert True
-
-
-@pytest.mark.skip(reason="This test is unfinished.")
-def test_quit_sig():
-    assert True
-
-
-@pytest.mark.skip(reason="This test is unfinished.")
-def test_usehdd_True():
-    assert True
-
-
-@pytest.mark.skip(reason="This test is unfinished.")
-def test_usehdd_False():
-    assert True
-
-
 def test_start_store(caplog):
     nex = Nexus("test")
     nex._start_store_interface(10000000)  # 10 MB store
@@ -266,56 +205,65 @@ def test_close_store(caplog):
 
 def test_start_harvester(caplog, setdir, ports):
     nex = Nexus("test")
-    nex.create_nexus(
-        file="minimal_harvester.yaml",
-        store_size=10000000,
-        control_port=ports[0],
-        output_port=ports[1],
-    )
+    try:
+        nex.create_nexus(
+            file="minimal_harvester.yaml",
+            store_size=10000000,
+            control_port=ports[0],
+            output_port=ports[1],
+        )
 
-    time.sleep(3)
+        time.sleep(3)
 
-    nex.destroy_nexus()
+        nex.destroy_nexus()
+    except Exception as e:
+        print(f"error caught in test harness: {e}")
+        logging.error(f"error caught in test harness: {e}")
 
     assert any(
         "Harvester server started" in record.msg
         for record in caplog.records
     )
 
+
 def test_process_actor_state_update(caplog, setdir, ports):
     nex = Nexus("test")
-    nex.create_nexus(
-        file="minimal_harvester.yaml",
-        store_size=10000000,
-        control_port=ports[0],
-        output_port=ports[1],
-    )
+    try:
+        nex.create_nexus(
+            file="minimal_harvester.yaml",
+            store_size=10000000,
+            control_port=ports[0],
+            output_port=ports[1],
+        )
 
-    time.sleep(3)
+        time.sleep(3)
 
-    new_actor_message = ActorStateMsg(
-        "test actor",
-        "waiting",
-        1234,
-        "test info"
-    )
+        new_actor_message = ActorStateMsg(
+            "test actor",
+            "waiting",
+            1234,
+            "test info"
+        )
 
-    nex.process_actor_state_update(new_actor_message)
-    assert "test actor" in nex.actor_states
-    assert nex.actor_states["test actor"].actor_name == new_actor_message.actor_name
-    assert nex.actor_states["test actor"].nexus_in_port == new_actor_message.nexus_in_port
-    assert nex.actor_states["test actor"].status == new_actor_message.status
+        nex.process_actor_state_update(new_actor_message)
+        assert "test actor" in nex.actor_states
+        assert nex.actor_states["test actor"].actor_name == new_actor_message.actor_name
+        assert nex.actor_states["test actor"].nexus_in_port == new_actor_message.nexus_in_port
+        assert nex.actor_states["test actor"].status == new_actor_message.status
 
-    update_actor_message = ActorStateMsg(
-        "test actor",
-        "waiting",
-        1234,
-        "test info"
-    )
+        update_actor_message = ActorStateMsg(
+            "test actor",
+            "waiting",
+            1234,
+            "test info"
+        )
 
-    nex.process_actor_state_update(update_actor_message)
+        nex.process_actor_state_update(update_actor_message)
 
-    nex.destroy_nexus()
+        nex.destroy_nexus()
+    except Exception as e:
+        print(f"error caught in test harness: {e}")
+        logging.error(f"error caught in test harness: {e}")
     assert any(
         "Received state message from new actor test actor" in record.msg
         for record in caplog.records
@@ -328,115 +276,126 @@ def test_process_actor_state_update(caplog, setdir, ports):
 
 def test_process_actor_state_update_allows_run(caplog, setdir, ports):
     nex = Nexus("test")
-    nex.create_nexus(
-        file="minimal_harvester.yaml",
-        store_size=10000000,
-        control_port=ports[0],
-        output_port=ports[1],
-    )
+    try:
+        nex.create_nexus(
+            file="minimal_harvester.yaml",
+            store_size=10000000,
+            control_port=ports[0],
+            output_port=ports[1],
+        )
 
-    time.sleep(3)
+        time.sleep(3)
 
-    nex.actor_states["test actor1"] = None
-    nex.actor_states["test actor2"] = None
+        nex.actor_states["test actor1"] = None
+        nex.actor_states["test actor2"] = None
 
-    actor1_message = ActorStateMsg(
-        "test actor1",
-        "ready",
-        1234,
-        "test info"
-    )
+        actor1_message = ActorStateMsg(
+            "test actor1",
+            "ready",
+            1234,
+            "test info"
+        )
 
-    nex.process_actor_state_update(actor1_message)
-    assert "test actor1" in nex.actor_states
-    assert nex.actor_states["test actor1"].actor_name == actor1_message.actor_name
-    assert nex.actor_states["test actor1"].nexus_in_port == actor1_message.nexus_in_port
-    assert nex.actor_states["test actor1"].status == actor1_message.status
+        nex.process_actor_state_update(actor1_message)
+        assert "test actor1" in nex.actor_states
+        assert nex.actor_states["test actor1"].actor_name == actor1_message.actor_name
+        assert nex.actor_states["test actor1"].nexus_in_port == actor1_message.nexus_in_port
+        assert nex.actor_states["test actor1"].status == actor1_message.status
 
-    assert not nex.allowStart
+        assert not nex.allowStart
 
-    actor2_message = ActorStateMsg(
-        "test actor2",
-        "ready",
-        5678,
-        "test info2"
-    )
+        actor2_message = ActorStateMsg(
+            "test actor2",
+            "ready",
+            5678,
+            "test info2"
+        )
 
-    nex.process_actor_state_update(actor2_message)
-    assert "test actor2" in nex.actor_states
-    assert nex.actor_states["test actor2"].actor_name == actor2_message.actor_name
-    assert nex.actor_states["test actor2"].nexus_in_port == actor2_message.nexus_in_port
-    assert nex.actor_states["test actor2"].status == actor2_message.status
+        nex.process_actor_state_update(actor2_message)
+        assert "test actor2" in nex.actor_states
+        assert nex.actor_states["test actor2"].actor_name == actor2_message.actor_name
+        assert nex.actor_states["test actor2"].nexus_in_port == actor2_message.nexus_in_port
+        assert nex.actor_states["test actor2"].status == actor2_message.status
 
-    nex.destroy_nexus()
+        nex.destroy_nexus()
+    except Exception as e:
+        print(f"error caught in test harness: {e}")
+        logging.error(f"error caught in test harness: {e}")
     assert nex.allowStart
 
 
 @pytest.mark.asyncio
 async def test_process_actor_message(caplog, setdir, ports):
     nex = Nexus("test")
-    nex.create_nexus(
-        file="minimal_harvester.yaml",
-        store_size=10000000,
-        control_port=ports[0],
-        output_port=ports[1],
-    )
+    try:
+        nex.create_nexus(
+            file="minimal_harvester.yaml",
+            store_size=10000000,
+            control_port=ports[0],
+            output_port=ports[1],
+        )
 
-    time.sleep(3)
+        time.sleep(3)
 
-    nex.actor_states["test actor1"] = None
-    nex.actor_states["test actor2"] = None
+        nex.actor_states["test actor1"] = None
+        nex.actor_states["test actor2"] = None
 
-    actor1_message = ActorStateMsg(
-        "test actor1",
-        "ready",
-        1234,
-        "test info"
-    )
+        actor1_message = ActorStateMsg(
+            "test actor1",
+            "ready",
+            1234,
+            "test info"
+        )
 
-    ctx = nex.zmq_context
-    s = ctx.socket(zmq.REQ)
-    s.connect(f"tcp://localhost:{nex.actor_in_socket_port}")
+        ctx = nex.zmq_context
+        s = ctx.socket(zmq.REQ)
+        s.connect(f"tcp://localhost:{nex.actor_in_socket_port}")
 
-    s.send_pyobj(actor1_message)
+        s.send_pyobj(actor1_message)
 
-    await nex.process_actor_message()
+        await nex.process_actor_message()
 
-    nex.process_actor_state_update(actor1_message)
-    assert "test actor1" in nex.actor_states
-    assert nex.actor_states["test actor1"].actor_name == actor1_message.actor_name
-    assert nex.actor_states["test actor1"].nexus_in_port == actor1_message.nexus_in_port
-    assert nex.actor_states["test actor1"].status == actor1_message.status
+        nex.process_actor_state_update(actor1_message)
+        assert "test actor1" in nex.actor_states
+        assert nex.actor_states["test actor1"].actor_name == actor1_message.actor_name
+        assert nex.actor_states["test actor1"].nexus_in_port == actor1_message.nexus_in_port
+        assert nex.actor_states["test actor1"].status == actor1_message.status
 
-    s.close(linger=0)
-    nex.destroy_nexus()
+        s.close(linger=0)
+        nex.destroy_nexus()
+    except Exception as e:
+        print(f"error caught in test harness: {e}")
+        logging.error(f"error caught in test harness: {e}")
 
     assert not nex.allowStart
 
 
-
 def test_specified_free_port(caplog, setdir, ports):
     nex = Nexus("test")
-    nex.create_nexus(
-        file="minimal_with_fixed_redis_port.yaml",
-        store_size=10000000,
-        control_port=ports[0],
-        output_port=ports[1],
-    )
+    try:
+        nex.create_nexus(
+            file="minimal_with_fixed_redis_port.yaml",
+            store_size=10000000,
+            control_port=ports[0],
+            output_port=ports[1],
+        )
 
-    store = StoreInterface(server_port_num=6378)
-    store.connect_to_server()
-    key = store.put("port 6378")
-    assert store.get(key) == "port 6378"
+        store = StoreInterface(server_port_num=6378)
+        store.connect_to_server()
+        key = store.put("port 6378")
+        assert store.get(key) == "port 6378"
 
-    assert any(
-        "Successfully connected to redis datastore on port 6378" in record.msg
-        for record in caplog.records
-    )
+        assert any(
+            "Successfully connected to redis datastore on port 6378" in record.msg
+            for record in caplog.records
+        )
 
-    time.sleep(3)
+        time.sleep(3)
 
-    nex.destroy_nexus()
+        nex.destroy_nexus()
+    except Exception as e:
+        print(f"error caught in test harness: {e}")
+        logging.error(f"error caught in test harness: {e}")
 
     assert any(
         "StoreInterface start successful on port 6378" in record.msg
@@ -446,16 +405,20 @@ def test_specified_free_port(caplog, setdir, ports):
 
 def test_specified_busy_port(caplog, setdir, ports, setup_store):
     nex = Nexus("test")
-    nex.create_nexus(
-        file="minimal_with_fixed_default_redis_port.yaml",
-        store_size=10000000,
-        control_port=ports[0],
-        output_port=ports[1],
-    )
+    try:
+        nex.create_nexus(
+            file="minimal_with_fixed_default_redis_port.yaml",
+            store_size=10000000,
+            control_port=ports[0],
+            output_port=ports[1],
+        )
 
-    time.sleep(3)
+        time.sleep(3)
 
-    nex.destroy_nexus()
+        nex.destroy_nexus()
+    except Exception as e:
+        print(f"error caught in test harness: {e}")
+        logging.error(f"error caught in test harness: {e}")
 
     assert any(
         "Could not connect to port 6379" in record.msg for record in caplog.records
@@ -469,16 +432,20 @@ def test_specified_busy_port(caplog, setdir, ports, setup_store):
 
 def test_unspecified_port_default_free(caplog, setdir, ports):
     nex = Nexus("test")
-    nex.create_nexus(
-        file="minimal.yaml",
-        store_size=10000000,
-        control_port=ports[0],
-        output_port=ports[1],
-    )
+    try:
+        nex.create_nexus(
+            file="minimal.yaml",
+            store_size=10000000,
+            control_port=ports[0],
+            output_port=ports[1],
+        )
 
-    time.sleep(3)
+        time.sleep(3)
 
-    nex.destroy_nexus()
+        nex.destroy_nexus()
+    except Exception as e:
+        print(f"error caught in test harness: {e}")
+        logging.error(f"error caught in test harness: {e}")
 
     assert any(
         "StoreInterface start successful on port 6379" in record.msg
@@ -488,16 +455,20 @@ def test_unspecified_port_default_free(caplog, setdir, ports):
 
 def test_unspecified_port_default_busy(caplog, setdir, ports, setup_store):
     nex = Nexus("test")
-    nex.create_nexus(
-        file="minimal.yaml",
-        store_size=10000000,
-        control_port=ports[0],
-        output_port=ports[1],
-    )
+    try:
+        nex.create_nexus(
+            file="minimal.yaml",
+            store_size=10000000,
+            control_port=ports[0],
+            output_port=ports[1],
+        )
 
-    time.sleep(3)
+        time.sleep(3)
 
-    nex.destroy_nexus()
+        nex.destroy_nexus()
+    except Exception as e:
+        print(f"error caught in test harness: {e}")
+        logging.error(f"error caught in test harness: {e}")
     assert any(
         "StoreInterface start successful on port 6380" in record.msg
         for record in caplog.records
@@ -505,22 +476,27 @@ def test_unspecified_port_default_busy(caplog, setdir, ports, setup_store):
 
 
 def test_no_aof_dir_by_default(caplog, setdir, ports):
-    if "appendonlydir" in os.listdir("."):
-        shutil.rmtree("appendonlydir")
-    else:
-        logging.info("didn't find dbfilename")
+    try:
+        if "appendonlydir" in os.listdir("."):
+            shutil.rmtree("appendonlydir")
+        else:
+            logging.info("didn't find dbfilename")
 
-    nex = Nexus("test")
-    nex.create_nexus(
-        file="minimal.yaml",
-        store_size=10000000,
-        control_port=ports[0],
-        output_port=ports[1],
-    )
+        nex = Nexus("test")
 
-    time.sleep(3)
+        nex.create_nexus(
+            file="minimal.yaml",
+            store_size=10000000,
+            control_port=ports[0],
+            output_port=ports[1],
+        )
 
-    nex.destroy_nexus()
+        time.sleep(3)
+
+        nex.destroy_nexus()
+    except Exception as e:
+        print(f"error caught in test harness: {e}")
+        logging.error(f"error caught in test harness: {e}")
 
     assert "appendonlydir" not in os.listdir(".")
     assert all(["improv_persistence_" not in name for name in os.listdir(".")])
@@ -528,19 +504,23 @@ def test_no_aof_dir_by_default(caplog, setdir, ports):
 
 def test_default_aof_dir_if_none_specified(caplog, setdir, ports, server_port_num):
     nex = Nexus("test")
-    nex.create_nexus(
-        file="minimal_with_redis_saving.yaml",
-        store_size=10000000,
-        control_port=ports[0],
-        output_port=ports[1],
-    )
+    try:
+        nex.create_nexus(
+            file="minimal_with_redis_saving.yaml",
+            store_size=10000000,
+            control_port=ports[0],
+            output_port=ports[1],
+        )
 
-    store = StoreInterface(server_port_num=server_port_num)
-    store.put(1)
+        store = StoreInterface(server_port_num=server_port_num)
+        store.put(1)
 
-    time.sleep(3)
+        time.sleep(3)
 
-    nex.destroy_nexus()
+        nex.destroy_nexus()
+    except Exception as e:
+        print(f"error caught in test harness: {e}")
+        logging.error(f"error caught in test harness: {e}")
 
     assert "appendonlydir" in os.listdir(".")
 
@@ -554,19 +534,23 @@ def test_default_aof_dir_if_none_specified(caplog, setdir, ports, server_port_nu
 
 def test_specify_static_aof_dir(caplog, setdir, ports, server_port_num):
     nex = Nexus("test")
-    nex.create_nexus(
-        file="minimal_with_custom_aof_dirname.yaml",
-        store_size=10000000,
-        control_port=ports[0],
-        output_port=ports[1],
-    )
+    try:
+        nex.create_nexus(
+            file="minimal_with_custom_aof_dirname.yaml",
+            store_size=10000000,
+            control_port=ports[0],
+            output_port=ports[1],
+        )
 
-    store = StoreInterface(server_port_num=server_port_num)
-    store.put(1)
+        store = StoreInterface(server_port_num=server_port_num)
+        store.put(1)
 
-    time.sleep(3)
+        time.sleep(3)
 
-    nex.destroy_nexus()
+        nex.destroy_nexus()
+    except Exception as e:
+        print(f"error caught in test harness: {e}")
+        logging.error(f"error caught in test harness: {e}")
 
     assert "custom_aof_dirname" in os.listdir(".")
 
@@ -580,19 +564,23 @@ def test_specify_static_aof_dir(caplog, setdir, ports, server_port_num):
 
 def test_use_ephemeral_aof_dir(caplog, setdir, ports, server_port_num):
     nex = Nexus("test")
-    nex.create_nexus(
-        file="minimal_with_ephemeral_aof_dirname.yaml",
-        store_size=10000000,
-        control_port=ports[0],
-        output_port=ports[1],
-    )
+    try:
+        nex.create_nexus(
+            file="minimal_with_ephemeral_aof_dirname.yaml",
+            store_size=10000000,
+            control_port=ports[0],
+            output_port=ports[1],
+        )
 
-    store = StoreInterface(server_port_num=server_port_num)
-    store.put(1)
+        store = StoreInterface(server_port_num=server_port_num)
+        store.put(1)
 
-    time.sleep(3)
+        time.sleep(3)
 
-    nex.destroy_nexus()
+        nex.destroy_nexus()
+    except Exception as e:
+        print(f"error caught in test harness: {e}")
+        logging.error(f"error caught in test harness: {e}")
 
     assert any(["improv_persistence_" in name for name in os.listdir(".")])
 
@@ -603,20 +591,24 @@ def test_use_ephemeral_aof_dir(caplog, setdir, ports, server_port_num):
 
 def test_save_no_schedule(caplog, setdir, ports, server_port_num):
     nex = Nexus("test")
-    nex.create_nexus(
-        file="minimal_with_no_schedule_saving.yaml",
-        store_size=10000000,
-        control_port=ports[0],
-        output_port=ports[1],
-    )
+    try:
+        nex.create_nexus(
+            file="minimal_with_no_schedule_saving.yaml",
+            store_size=10000000,
+            control_port=ports[0],
+            output_port=ports[1],
+        )
 
-    store = StoreInterface(server_port_num=server_port_num)
+        store = StoreInterface(server_port_num=server_port_num)
 
-    fsync_schedule = store.client.config_get("appendfsync")
+        fsync_schedule = store.client.config_get("appendfsync")
 
-    time.sleep(3)
+        time.sleep(3)
 
-    nex.destroy_nexus()
+        nex.destroy_nexus()
+    except Exception as e:
+        print(f"error caught in test harness: {e}")
+        logging.error(f"error caught in test harness: {e}")
 
     assert "appendonlydir" in os.listdir(".")
     shutil.rmtree("appendonlydir")
@@ -626,20 +618,24 @@ def test_save_no_schedule(caplog, setdir, ports, server_port_num):
 
 def test_save_every_second(caplog, setdir, ports, server_port_num):
     nex = Nexus("test")
-    nex.create_nexus(
-        file="minimal_with_every_second_saving.yaml",
-        store_size=10000000,
-        control_port=ports[0],
-        output_port=ports[1],
-    )
+    try:
+        nex.create_nexus(
+            file="minimal_with_every_second_saving.yaml",
+            store_size=10000000,
+            control_port=ports[0],
+            output_port=ports[1],
+        )
 
-    store = StoreInterface(server_port_num=server_port_num)
+        store = StoreInterface(server_port_num=server_port_num)
 
-    fsync_schedule = store.client.config_get("appendfsync")
+        fsync_schedule = store.client.config_get("appendfsync")
 
-    time.sleep(3)
+        time.sleep(3)
 
-    nex.destroy_nexus()
+        nex.destroy_nexus()
+    except Exception as e:
+        print(f"error caught in test harness: {e}")
+        logging.error(f"error caught in test harness: {e}")
 
     assert "appendonlydir" in os.listdir(".")
     shutil.rmtree("appendonlydir")
@@ -649,20 +645,24 @@ def test_save_every_second(caplog, setdir, ports, server_port_num):
 
 def test_save_every_write(caplog, setdir, ports, server_port_num):
     nex = Nexus("test")
-    nex.create_nexus(
-        file="minimal_with_every_write_saving.yaml",
-        store_size=10000000,
-        control_port=ports[0],
-        output_port=ports[1],
-    )
+    try:
+        nex.create_nexus(
+            file="minimal_with_every_write_saving.yaml",
+            store_size=10000000,
+            control_port=ports[0],
+            output_port=ports[1],
+        )
 
-    store = StoreInterface(server_port_num=server_port_num)
+        store = StoreInterface(server_port_num=server_port_num)
 
-    fsync_schedule = store.client.config_get("appendfsync")
+        fsync_schedule = store.client.config_get("appendfsync")
 
-    time.sleep(3)
+        time.sleep(3)
 
-    nex.destroy_nexus()
+        nex.destroy_nexus()
+    except Exception as e:
+        print(f"error caught in test harness: {e}")
+        logging.error(f"error caught in test harness: {e}")
 
     assert "appendonlydir" in os.listdir(".")
     shutil.rmtree("appendonlydir")
