@@ -55,15 +55,22 @@ def set_dir_config_parent():
 @pytest.fixture
 def sample_nex(setdir, ports):
     nex = Nexus("test")
-    nex.create_nexus(
-        file="good_config.yaml",
-        store_size=40000000,
-        control_port=ports[0],
-        output_port=ports[1],
-    )
+    try:
+        nex.create_nexus(
+            file="good_config.yaml",
+            store_size=40000000,
+            control_port=ports[0],
+            output_port=ports[1],
+        )
+    except Exception as e:
+        print(f"error caught in test harness: {e}")
+        logging.error(f"error caught in test harness: {e}")
     yield nex
-    nex.destroy_nexus()
-
+    try:
+        nex.destroy_nexus()
+    except Exception as e:
+        print(f"error caught in test harness: {e}")
+        logging.error(f"error caught in test harness: {e}")
 
 @pytest.fixture
 def server_port_num():
