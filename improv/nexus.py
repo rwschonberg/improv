@@ -41,6 +41,7 @@ ASYNC_DEBUG = False
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+logger.addHandler(logging.StreamHandler())
 
 # TODO: redo docsctrings since things are pretty different now
 
@@ -159,6 +160,7 @@ class Nexus:
         with open(file, "r") as f:  # write config file to log
             logger.info(f.read())
 
+        logger.info("Applying CLI parameter configuration overrides")
         self.apply_cli_config_overrides(
             store_size=store_size,
             control_port=control_port,
@@ -166,13 +168,16 @@ class Nexus:
             actor_in_port=actor_in_port,
         )
 
+        logger.info("Setting up sockets")
         self.set_up_sockets(actor_in_port=self.config.settings["actor_in_port"])
 
+        logger.info("Setting up services")
         self.start_improv_services(
             log_server_pub_port=log_server_pub_port,
             store_size=self.config.settings["store_size"],
         )
 
+        logger.info("initializing config")
         self.init_config()
 
         self.flags.update({"quit": False, "run": False, "load": False})
@@ -208,6 +213,7 @@ class Nexus:
         """
         # TODO load from file or user input, as in dialogue through FrontEnd?
 
+        logger.info("initializing config")
         flag = self.config.create_config()
         if flag == -1:
             logger.error(
@@ -1060,6 +1066,8 @@ class Nexus:
                 logger.exception(f"Unable to close harvester: {e}")
 
     def set_up_sockets(self, actor_in_port):
+
+        logger.info("Connecting to output")
         cfg = self.config.settings  # this could be self.settings instead
         self.zmq_context = zmq.Context()
         self.zmq_context.setsockopt(SocketOption.LINGER, 0)
@@ -1068,11 +1076,13 @@ class Nexus:
         out_port_string = self.out_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
         cfg["output_port"] = int(out_port_string.split(":")[-1])
 
+        logger.info("Connecting to control")
         self.in_socket = self.zmq_context.socket(REP)
         self.in_socket.bind("tcp://*:%s" % cfg["control_port"])
         in_port_string = self.in_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
         cfg["control_port"] = int(in_port_string.split(":")[-1])
 
+        logger.info("Connecting to actor comm socket")
         self.actor_in_socket = self.zmq_context.socket(REP)
         self.actor_in_socket.bind(f"tcp://*:{actor_in_port}")
         in_port_string = self.actor_in_socket.getsockopt_string(
@@ -1080,6 +1090,7 @@ class Nexus:
         )
         self.actor_in_socket_port = int(in_port_string.split(":")[-1])
 
+        logger.info("Setting up sync server startup socket")
         self.zmq_sync_context = zmq_sync.Context()
         self.zmq_sync_context.setsockopt(SocketOption.LINGER, 0)
         self.broker_in_socket = self.zmq_sync_context.socket(REP)
@@ -1090,12 +1101,17 @@ class Nexus:
         self.broker_in_port = int(broker_in_port_string.split(":")[-1])
 
     def start_improv_services(self, log_server_pub_port, store_size):
+        logger.info("Starting logger")
         self.start_logger(log_server_pub_port)
         logger.addHandler(log.ZmqLogHandler("localhost", self.logger_pull_port))
+
+        logger.info("starting broker")
         self.start_message_broker()
 
+        logger.info("Parsing redis persistence")
         self.configure_redis_persistence()
 
+        logger.info("Starting redis server")
         # default size should be system-dependent
         self._start_store_interface(store_size)
         logger.info("Redis server started")
@@ -1103,6 +1119,7 @@ class Nexus:
         self.out_socket.send_string("StoreInterface started")
 
         if self.config.settings["harvest_data_from_memory"]:
+            logger.info("starting harvester")
             self.start_harvester()
 
         # connect to store and subscribe to notifications
