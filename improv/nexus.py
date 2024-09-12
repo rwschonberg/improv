@@ -986,6 +986,17 @@ class Nexus:
             self.quit()
             raise Exception("Could not start log server.")
         logger.info("logger is alive")
+        poll_res = self.broker_in_socket.poll(timeout=2500)
+        if poll_res == 0:
+            logger.info("Never got reply from logger.")
+            try:
+                with open("log_server.log", "r") as file:
+                    logger.info(file.read())
+            except Exception as e:
+                logger.info(e)
+            self.destroy_nexus()
+            logger.info("exiting after destroy")
+            exit(1)
         logger_info: LogInfoMsg = self.broker_in_socket.recv_pyobj()
         self.logger_pull_port = logger_info.pull_port
         self.logger_pub_port = logger_info.pub_port
