@@ -15,9 +15,14 @@ local_log = logging.getLogger(__name__)
 def bootstrap_broker(nexus_hostname, nexus_port):
     if DEBUG:
         local_log.addHandler(logging.FileHandler("broker_server.log"))
-    broker = PubSubBroker(nexus_hostname, nexus_port)
-    broker.register_with_nexus()
-    broker.serve(broker.read_and_pub_message)
+    try:
+        broker = PubSubBroker(nexus_hostname, nexus_port)
+        broker.register_with_nexus()
+        broker.serve(broker.read_and_pub_message)
+    except Exception as e:
+        local_log.error(e)
+        for handler in local_log.handlers:
+            handler.close()
 
 
 class PubSubBroker:
@@ -44,25 +49,13 @@ class PubSubBroker:
         self.nexus_socket.connect(f"tcp://{self.nexus_hostname}:{self.nexus_comm_port}")
 
         self.sub_socket = self.zmq_context.socket(zmq.SUB)
-        try:
-            self.sub_socket.bind("tcp://*:0")
-        except Exception as e:
-            local_log.error(e)
-            for handler in local_log.handlers:
-                handler.close()
-            exit(1)  # if we can't bind to the specified port, we need to bail out
+        self.sub_socket.bind("tcp://*:0")
         sub_port_string = self.sub_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
         self.sub_port = int(sub_port_string.split(":")[-1])
         self.sub_socket.subscribe("")  # receive all incoming messages
 
         self.pub_socket = self.zmq_context.socket(zmq.PUB)
-        try:
-            self.pub_socket.bind("tcp://*:0")
-        except Exception as e:
-            local_log.error(e)
-            for handler in local_log.handlers:
-                handler.close()
-            exit(1)  # if we can't bind to the specified port, we need to bail out
+        self.pub_socket.bind("tcp://*:0")
         pub_port_string = self.pub_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
         self.pub_port = int(pub_port_string.split(":")[-1])
 

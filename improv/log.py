@@ -25,9 +25,14 @@ def bootstrap_log_server(
 ):
     if DEBUG:
         local_log.addHandler(logging.FileHandler("log_server.log"))
-    log_server = LogServer(nexus_hostname, nexus_port, log_filename, logger_pull_port)
-    log_server.register_with_nexus()
-    log_server.serve(log_server.read_and_log_message)
+    try:
+        log_server = LogServer(nexus_hostname, nexus_port, log_filename, logger_pull_port)
+        log_server.register_with_nexus()
+        log_server.serve(log_server.read_and_log_message)
+    except Exception as e:
+        local_log.error(e)
+        for handler in local_log.handlers:
+            handler.close()
 
 
 class ZmqPullListener(handlers.QueueListener):
@@ -95,13 +100,7 @@ class LogServer:
         self.nexus_socket.connect(f"tcp://{self.nexus_hostname}:{self.nexus_comm_port}")
 
         self.pub_socket = self.zmq_context.socket(zmq.PUB)
-        try:
-            self.pub_socket.bind(f"tcp://*:{self.pub_port}")
-        except Exception as e:
-            local_log.error(e)
-            for handler in local_log.handlers:
-                handler.close()
-            exit(1)# if we can't bind to the specified port, we need to bail out
+        self.pub_socket.bind(f"tcp://*:{self.pub_port}")
         pub_port_string = self.pub_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
         self.pub_port = int(pub_port_string.split(":")[-1])
 
