@@ -13,7 +13,7 @@ from improv.messaging import LogInfoMsg
 
 local_log = logging.getLogger(__name__)
 
-DEBUG = False
+DEBUG = True
 
 # TODO: ideally there should be some kind of drain at shutdown time
 #  so we don't miss any log messages, but that would make shutdown
@@ -124,6 +124,7 @@ class LogServer:
         )
 
         self.nexus_socket.send_pyobj(port_info)
+        local_log.info("logger sent message to nexus")
         self.nexus_socket.recv_pyobj()
 
         local_log.info("logger got message from nexus")

@@ -73,9 +73,10 @@ class PubSubBroker:
             "Ports up and running, ready to serve messages",
         )
 
+        self.nexus_socket.send_pyobj(port_info)
+
         local_log.info("broker attempting to get message from nexus")
 
-        self.nexus_socket.send_pyobj(port_info)
         self.nexus_socket.recv_pyobj()
 
         local_log.info("broker got message back from nexus")
