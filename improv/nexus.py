@@ -1022,6 +1022,17 @@ class Nexus:
             self.quit()
             raise Exception("Could not start message broker server.")
         logger.info("broker is alive")
+        poll_res = self.broker_in_socket.poll(timeout=2500)
+        if poll_res == 0:
+            logger.info("Never got reply from broker.")
+            try:
+                with open("broker_server.log", "r") as file:
+                    logger.info(file.read())
+            except Exception as e:
+                logger.info(e)
+            self.destroy_nexus()
+            logger.info("exiting after destroy")
+            exit(1)
         broker_info: BrokerInfoMsg = self.broker_in_socket.recv_pyobj()
         self.broker_sub_port = broker_info.sub_port
         self.broker_pub_port = broker_info.pub_port

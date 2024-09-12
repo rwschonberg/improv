@@ -99,7 +99,9 @@ class LogServer:
             self.pub_socket.bind(f"tcp://*:{self.pub_port}")
         except Exception as e:
             local_log.error(e)
-            exit(1)  # if we can't bind to the specified port, we need to bail out
+            for handler in local_log.handlers:
+                handler.close()
+            exit(1)# if we can't bind to the specified port, we need to bail out
         pub_port_string = self.pub_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
         self.pub_port = int(pub_port_string.split(":")[-1])
 
@@ -112,6 +114,8 @@ class LogServer:
 
         self.listener.start()
 
+        local_log.info("logger started listening")
+
         port_info = LogInfoMsg(
             "broker",
             self.listener.pull_port,
@@ -122,9 +126,12 @@ class LogServer:
         self.nexus_socket.send_pyobj(port_info)
         self.nexus_socket.recv_pyobj()
 
+        local_log.info("logger got message from nexus")
+
         return
 
     def serve(self, log_func):
+        local_log.info("logger serving")
         while self.running:
             log_func()  # this is more testable but may have a performance overhead
         self.shutdown()

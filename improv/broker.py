@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import signal
 
 import zmq
@@ -7,8 +8,13 @@ from zmq import SocketOption
 
 from improv.messaging import BrokerInfoMsg
 
+DEBUG = True
+
+local_log = logging.getLogger(__name__)
 
 def bootstrap_broker(nexus_hostname, nexus_port):
+    if DEBUG:
+        local_log.addHandler(logging.FileHandler("broker_server.log"))
     broker = PubSubBroker(nexus_hostname, nexus_port)
     broker.register_with_nexus()
     broker.serve(broker.read_and_pub_message)
@@ -38,13 +44,25 @@ class PubSubBroker:
         self.nexus_socket.connect(f"tcp://{self.nexus_hostname}:{self.nexus_comm_port}")
 
         self.sub_socket = self.zmq_context.socket(zmq.SUB)
-        self.sub_socket.bind("tcp://*:0")
+        try:
+            self.sub_socket.bind("tcp://*:0")
+        except Exception as e:
+            local_log.error(e)
+            for handler in local_log.handlers:
+                handler.close()
+            exit(1)  # if we can't bind to the specified port, we need to bail out
         sub_port_string = self.sub_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
         self.sub_port = int(sub_port_string.split(":")[-1])
         self.sub_socket.subscribe("")  # receive all incoming messages
 
         self.pub_socket = self.zmq_context.socket(zmq.PUB)
-        self.pub_socket.bind("tcp://*:0")
+        try:
+            self.pub_socket.bind("tcp://*:0")
+        except Exception as e:
+            local_log.error(e)
+            for handler in local_log.handlers:
+                handler.close()
+            exit(1)  # if we can't bind to the specified port, we need to bail out
         pub_port_string = self.pub_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
         self.pub_port = int(pub_port_string.split(":")[-1])
 
@@ -55,19 +73,24 @@ class PubSubBroker:
             "Ports up and running, ready to serve messages",
         )
 
+        local_log.info("broker attempting to get message from nexus")
+
         self.nexus_socket.send_pyobj(port_info)
         self.nexus_socket.recv_pyobj()
+
+        local_log.info("broker got message back from nexus")
 
         return
 
     def serve(self, message_process_func):
+        local_log.info("broker serving")
         while self.running:
             # this is more testable but may have a performance overhead
             message_process_func()
 
     def read_and_pub_message(self):
         try:
-            msg_ready = self.sub_socket.poll(timeout=5)
+            msg_ready = self.sub_socket.poll(timeout=0)
             if msg_ready != 0:
                 msg = self.sub_socket.recv_multipart()
                 self.pub_socket.send_multipart(msg)
