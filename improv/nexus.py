@@ -986,7 +986,7 @@ class Nexus:
             self.quit()
             raise Exception("Could not start log server.")
         logger.info("logger is alive")
-        poll_res = self.broker_in_socket.poll(timeout=2500)
+        poll_res = self.broker_in_socket.poll(timeout=5000)
         if poll_res == 0:
             logger.info("Never got reply from logger.")
             try:
@@ -1022,7 +1022,7 @@ class Nexus:
             self.quit()
             raise Exception("Could not start message broker server.")
         logger.info("broker is alive")
-        poll_res = self.broker_in_socket.poll(timeout=2500)
+        poll_res = self.broker_in_socket.poll(timeout=5000)
         if poll_res == 0:
             logger.info("Never got reply from broker.")
             try:
