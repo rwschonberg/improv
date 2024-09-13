@@ -235,7 +235,9 @@ def test_config_redis_ephemeral_dirname_and_aof_dirname_specified(set_configdir)
     cfg.config["redis_config"] = dict()
     cfg.config["redis_config"]["generate_ephemeral_aof_dirname"] = True
     cfg.config["redis_config"]["aof_dirname"] = "test"
-    with pytest.raises(Exception):
+    with pytest.raises(
+        Exception, match="Cannot use unique dirname and use the one provided."
+    ):
         cfg.parse_config()
 
 
@@ -245,7 +247,7 @@ def test_config_redis_ephemeral_dirname_enabled_saving_disabled(set_configdir):
     cfg.config["redis_config"] = dict()
     cfg.config["redis_config"]["generate_ephemeral_aof_dirname"] = True
     cfg.config["redis_config"]["enable_saving"] = False
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="Cannot persist to disk with saving disabled."):
         cfg.parse_config()
 
 
@@ -255,7 +257,7 @@ def test_config_redis_aof_dirname_enabled_saving_disabled(set_configdir):
     cfg.config["redis_config"] = dict()
     cfg.config["redis_config"]["aof_dirname"] = "test"
     cfg.config["redis_config"]["enable_saving"] = False
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="Cannot persist to disk with saving disabled."):
         cfg.parse_config()
 
 
@@ -265,7 +267,7 @@ def test_config_redis_fsync_enabled_saving_disabled(set_configdir):
     cfg.config["redis_config"] = dict()
     cfg.config["redis_config"]["fsync_frequency"] = "always"
     cfg.config["redis_config"]["enable_saving"] = False
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="Cannot persist to disk with saving disabled."):
         cfg.parse_config()
 
 
@@ -274,7 +276,7 @@ def test_config_redis_unknown_fsync_freq(set_configdir):
     cfg.config = dict()
     cfg.config["redis_config"] = dict()
     cfg.config["redis_config"]["fsync_frequency"] = "unknown"
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="Cannot use unknown fsync frequency unknown"):
         cfg.parse_config()
 
 

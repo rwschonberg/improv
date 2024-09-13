@@ -3,7 +3,6 @@ import multiprocessing
 import os
 import signal
 import time
-import uuid
 
 import pytest
 import subprocess
@@ -71,6 +70,7 @@ def sample_nex(setdir, ports):
     except Exception as e:
         print(f"error caught in test harness: {e}")
         logging.error(f"error caught in test harness: {e}")
+
 
 @pytest.fixture
 def server_port_num():

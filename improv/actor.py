@@ -9,7 +9,6 @@ from queue import Empty
 import zmq
 from zmq import SocketOption
 
-import improv.store
 from improv import log
 from improv.link import ZmqLink
 from improv.messaging import ActorStateMsg, ActorStateReplyMsg, ActorSignalReplyMsg

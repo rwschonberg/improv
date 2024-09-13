@@ -26,7 +26,9 @@ def bootstrap_log_server(
     if DEBUG:
         local_log.addHandler(logging.FileHandler("log_server.log"))
     try:
-        log_server = LogServer(nexus_hostname, nexus_port, log_filename, logger_pull_port)
+        log_server = LogServer(
+            nexus_hostname, nexus_port, log_filename, logger_pull_port
+        )
         log_server.register_with_nexus()
         log_server.serve(log_server.read_and_log_message)
     except Exception as e:

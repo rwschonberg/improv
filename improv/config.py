@@ -163,7 +163,7 @@ class Config:
         fsync_name_dict = {
             "every_write": "always",
             "every_second": "everysec",
-            "no_schedule": "no"
+            "no_schedule": "no",
         }
         if (
             self.config["redis_config"]["aof_dirname"]
@@ -193,18 +193,20 @@ class Config:
             "no_schedule",
         ]:
             logger.error(
-                f'Cannot use unknown fsync frequency {self.config["redis_config"]["fsync_frequency"]}'
+                f"Cannot use unknown fsync frequency "
+                f'{self.config["redis_config"]["fsync_frequency"]}'
             )
             raise Exception(
-                f'Cannot use unknown fsync frequency {self.config["redis_config"]["fsync_frequency"]}'
+                f"Cannot use unknown fsync frequency "
+                f'{self.config["redis_config"]["fsync_frequency"]}'
             )
 
         if self.config["redis_config"]["fsync_frequency"] is None:
             self.config["redis_config"]["fsync_frequency"] = "no_schedule"
 
-        self.config["redis_config"]["fsync_frequency"] = (
-            fsync_name_dict)[self.config["redis_config"]["fsync_frequency"]]
-
+        self.config["redis_config"]["fsync_frequency"] = (fsync_name_dict)[
+            self.config["redis_config"]["fsync_frequency"]
+        ]
 
 
 class ConfigModule:

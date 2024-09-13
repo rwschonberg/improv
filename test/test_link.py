@@ -358,7 +358,7 @@ async def test_get_async_success(test_sub_link):
 def test_pub_put_no_topic():
     ctx = zmq.Context()
     s = ctx.socket(zmq.PUB)
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="Cannot open PUB link without topic"):
         ZmqLink(s, "test")
     s.close(linger=0)
     ctx.destroy(linger=0)

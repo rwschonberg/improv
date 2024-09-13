@@ -3,15 +3,12 @@ import uuid
 
 import pickle
 import logging
-import traceback
 import zlib
 
 from redis import Redis
 from redis.retry import Retry
 from redis.backoff import ConstantBackoff
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
-
-REDIS_GLOBAL_TOPIC = "global_topic"
 
 ZLIB_COMPRESSION_LEVEL = -1
 

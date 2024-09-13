@@ -10,7 +10,7 @@ import concurrent
 import subprocess
 
 from datetime import datetime
-from multiprocessing import Process, get_context
+from multiprocessing import get_context
 from importlib import import_module
 
 import zmq as zmq_sync
@@ -39,7 +39,7 @@ from improv.config import Config
 ASYNC_DEBUG = False
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler())
 
 # TODO: redo docsctrings since things are pretty different now
@@ -67,7 +67,7 @@ class ConfigFileNotValidException(Exception):
 
 class ActorState:
     def __init__(
-            self, actor_name, status, nexus_in_port, hostname="localhost", sig_socket=None
+        self, actor_name, status, nexus_in_port, hostname="localhost", sig_socket=None
     ):
         self.actor_name = actor_name
         self.status = status
@@ -117,14 +117,14 @@ class Nexus:
         return self.name
 
     def create_nexus(
-            self,
-            file=None,
-            store_size=None,
-            control_port=None,
-            output_port=None,
-            log_server_pub_port=None,
-            actor_in_port=None,
-            logfile="global.log",
+        self,
+        file=None,
+        store_size=None,
+        control_port=None,
+        output_port=None,
+        log_server_pub_port=None,
+        actor_in_port=None,
+        logfile="global.log",
     ):
         """Function to initialize class variables based on config file.
 
@@ -160,7 +160,7 @@ class Nexus:
         with open(file, "r") as f:  # write config file to log
             logger.info(f.read())
 
-        logger.info("Applying CLI parameter configuration overrides")
+        logger.debug("Applying CLI parameter configuration overrides")
         self.apply_cli_config_overrides(
             store_size=store_size,
             control_port=control_port,
@@ -168,16 +168,16 @@ class Nexus:
             actor_in_port=actor_in_port,
         )
 
-        logger.info("Setting up sockets")
+        logger.debug("Setting up sockets")
         self.set_up_sockets(actor_in_port=self.config.settings["actor_in_port"])
 
-        logger.info("Setting up services")
+        logger.debug("Setting up services")
         self.start_improv_services(
             log_server_pub_port=log_server_pub_port,
             store_size=self.config.settings["store_size"],
         )
 
-        logger.info("initializing config")
+        logger.debug("initializing config")
         self.init_config()
 
         self.flags.update({"quit": False, "run": False, "load": False})
@@ -491,10 +491,10 @@ class Nexus:
         )
 
         if all(
-                [
-                    actor_state is not None and actor_state.status == Signal.ready()
-                    for actor_state in self.actor_states.values()
-                ]
+            [
+                actor_state is not None and actor_state.status == Signal.ready()
+                for actor_state in self.actor_states.values()
+            ]
         ):
             self.allowStart = True
 
@@ -516,19 +516,19 @@ class Nexus:
                     )
                 )
             if (not self.allow_setup) and all(
-                    [
-                        actor_state is not None and actor_state.status == Signal.waiting()
-                        for actor_state in self.actor_states.values()
-                    ]
+                [
+                    actor_state is not None and actor_state.status == Signal.waiting()
+                    for actor_state in self.actor_states.values()
+                ]
             ):
                 logger.info("All actors connected to Nexus. Allowing setup.")
                 self.allow_setup = True
 
             if (not self.allowStart) and all(
-                    [
-                        actor_state is not None and actor_state.status == Signal.ready()
-                        for actor_state in self.actor_states.values()
-                    ]
+                [
+                    actor_state is not None and actor_state.status == Signal.ready()
+                    for actor_state in self.actor_states.values()
+                ]
             ):
                 logger.info("All actors ready. Allowing run.")
                 self.allowStart = True
@@ -806,7 +806,7 @@ class Nexus:
             ]
             logger.info("Redis persistence directory set to {}".format(self.aof_dir))
         elif (
-                self.redis_saving_enabled
+            self.redis_saving_enabled
         ):  # just use the (possibly preexisting) default aof dir
             subprocess_command += [
                 "--appendonly",
@@ -974,10 +974,10 @@ class Nexus:
                 log_server_pub_port,
             ),
         )
-        logger.info("logger created")
+        logger.debug("logger created")
         self.p_logger.start()
         time.sleep(1)
-        logger.info("logger started")
+        logger.debug("logger started")
         if not self.p_logger.is_alive():
             logger.error(
                 "Logger process failed to start. "
@@ -986,17 +986,19 @@ class Nexus:
             )
             self.quit()
             raise Exception("Could not start log server.")
-        logger.info("logger is alive")
+        logger.debug("logger is alive")
         poll_res = self.logger_in_socket.poll(timeout=5000)
         if poll_res == 0:
-            logger.info("Never got reply from logger.")
+            logger.error(
+                "Never got reply from logger. Cannot proceed setting up Nexus."
+            )
             try:
                 with open("log_server.log", "r") as file:
-                    logger.info(file.read())
+                    logger.debug(file.read())
             except Exception as e:
-                logger.info(e)
+                logger.error(e)
             self.destroy_nexus()
-            logger.info("exiting after destroy")
+            logger.error("exiting after destroy")
             exit(1)
         logger_info: LogInfoMsg = self.logger_in_socket.recv_pyobj()
         self.logger_pull_port = logger_info.pull_port
@@ -1004,17 +1006,17 @@ class Nexus:
         self.logger_in_socket.send_pyobj(
             LogInfoReplyMsg(logger_info.name, "OK", "registered logger information")
         )
-        logger.info("logger replied with setup message")
+        logger.debug("logger replied with setup message")
 
     def start_message_broker(self):
         spawn_context = get_context("spawn")
         self.p_broker = spawn_context.Process(
             target=bootstrap_broker, args=("localhost", self.broker_in_port)
         )
-        logger.info("broker created")
+        logger.debug("broker created")
         self.p_broker.start()
         time.sleep(1)
-        logger.info("broker started")
+        logger.debug("broker started")
         if not self.p_broker.is_alive():
             logger.error(
                 "Broker process failed to start. "
@@ -1023,17 +1025,17 @@ class Nexus:
             )
             self.quit()
             raise Exception("Could not start message broker server.")
-        logger.info("broker is alive")
+        logger.debug("broker is alive")
         poll_res = self.broker_in_socket.poll(timeout=5000)
         if poll_res == 0:
-            logger.info("Never got reply from broker.")
+            logger.error("Never got reply from broker. Cannot proceed.")
             try:
                 with open("broker_server.log", "r") as file:
-                    logger.info(file.read())
+                    logger.debug(file.read())
             except Exception as e:
-                logger.info(e)
+                logger.error(e)
             self.destroy_nexus()
-            logger.info("exiting after destroy")
+            logger.debug("exiting after destroy")
             exit(1)
         broker_info: BrokerInfoMsg = self.broker_in_socket.recv_pyobj()
         self.broker_sub_port = broker_info.sub_port
@@ -1041,7 +1043,7 @@ class Nexus:
         self.broker_in_socket.send_pyobj(
             BrokerInfoReplyMsg(broker_info.name, "OK", "registered broker information")
         )
-        logger.info("broker replied with setup message")
+        logger.debug("broker replied with setup message")
 
     def _shutdown_broker(self):
         """Internal method to kill the subprocess
@@ -1097,7 +1099,7 @@ class Nexus:
 
     def set_up_sockets(self, actor_in_port):
 
-        logger.info("Connecting to output")
+        logger.debug("Connecting to output")
         cfg = self.config.settings  # this could be self.settings instead
         self.zmq_context = zmq.Context()
         self.zmq_context.setsockopt(SocketOption.LINGER, 0)
@@ -1106,13 +1108,13 @@ class Nexus:
         out_port_string = self.out_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
         cfg["output_port"] = int(out_port_string.split(":")[-1])
 
-        logger.info("Connecting to control")
+        logger.debug("Connecting to control")
         self.in_socket = self.zmq_context.socket(REP)
         self.in_socket.bind("tcp://*:%s" % cfg["control_port"])
         in_port_string = self.in_socket.getsockopt_string(SocketOption.LAST_ENDPOINT)
         cfg["control_port"] = int(in_port_string.split(":")[-1])
 
-        logger.info("Connecting to actor comm socket")
+        logger.debug("Connecting to actor comm socket")
         self.actor_in_socket = self.zmq_context.socket(REP)
         self.actor_in_socket.bind(f"tcp://*:{actor_in_port}")
         in_port_string = self.actor_in_socket.getsockopt_string(
@@ -1120,7 +1122,7 @@ class Nexus:
         )
         self.actor_in_socket_port = int(in_port_string.split(":")[-1])
 
-        logger.info("Setting up sync server startup socket")
+        logger.debug("Setting up sync server startup socket")
         self.zmq_sync_context = zmq_sync.Context()
         self.zmq_sync_context.setsockopt(SocketOption.LINGER, 0)
 
@@ -1139,17 +1141,17 @@ class Nexus:
         self.broker_in_port = int(broker_in_port_string.split(":")[-1])
 
     def start_improv_services(self, log_server_pub_port, store_size):
-        logger.info("Starting logger")
+        logger.debug("Starting logger")
         self.start_logger(log_server_pub_port)
         logger.addHandler(log.ZmqLogHandler("localhost", self.logger_pull_port))
 
-        logger.info("starting broker")
+        logger.debug("starting broker")
         self.start_message_broker()
 
-        logger.info("Parsing redis persistence")
+        logger.debug("Parsing redis persistence")
         self.configure_redis_persistence()
 
-        logger.info("Starting redis server")
+        logger.debug("Starting redis server")
         # default size should be system-dependent
         self._start_store_interface(store_size)
         logger.info("Redis server started")
@@ -1157,16 +1159,17 @@ class Nexus:
         self.out_socket.send_string("StoreInterface started")
 
         if self.config.settings["harvest_data_from_memory"]:
-            logger.info("starting harvester")
+            logger.debug("starting harvester")
             self.start_harvester()
 
         # connect to store and subscribe to notifications
         logger.info("Create new store object")
         self.store = StoreInterface(server_port_num=self.store_port)
         logger.info(f"Redis server connected on port {self.store_port}")
+        logger.info("all services started")
 
     def apply_cli_config_overrides(
-            self, store_size, control_port, output_port, actor_in_port
+        self, store_size, control_port, output_port, actor_in_port
     ):
         if store_size is not None:
             self.config.settings["store_size"] = store_size
@@ -1226,8 +1229,6 @@ class Nexus:
         for i, t in enumerate(self.tasks):
             if i == 0:
                 if t in done:
-                    self.tasks[i] = asyncio.create_task(
-                        self.process_actor_message()
-                    )
+                    self.tasks[i] = asyncio.create_task(self.process_actor_message())
             elif t in done:
                 self.tasks[i] = asyncio.create_task(self.remote_input())

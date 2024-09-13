@@ -53,7 +53,7 @@ def test_get_list_and_all(setup_store, server_port_num):
     store = StoreInterface(server_port_num=server_port_num)
     id = store.put(1)
     id2 = store.put(2)
-    id3 = store.put(3)
+    store.put(3)
     assert [1, 2] == store.get_list([id, id2])
     assert [1, 2, 3] == sorted(store.get_all())
 

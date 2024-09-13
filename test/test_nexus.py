@@ -10,7 +10,11 @@ import zmq
 
 from improv.config import CannotCreateConfigException
 from improv.messaging import ActorStateMsg
-from improv.nexus import Nexus, ConfigFileNotProvidedException, ConfigFileNotValidException
+from improv.nexus import (
+    Nexus,
+    ConfigFileNotProvidedException,
+    ConfigFileNotValidException,
+)
 from improv.store import StoreInterface
 
 
@@ -95,19 +99,19 @@ def test_start_nexus(sample_nex):
     ("cfg_name", "actor_list", "link_list"),
     [
         (
-                "good_config.yaml",
-                ["Acquirer", "Analysis"],
-                ["Acquirer_sig", "Analysis_sig"],
+            "good_config.yaml",
+            ["Acquirer", "Analysis"],
+            ["Acquirer_sig", "Analysis_sig"],
         ),
         (
-                "simple_graph.yaml",
-                ["Acquirer", "Analysis"],
-                ["Acquirer_sig", "Analysis_sig"],
+            "simple_graph.yaml",
+            ["Acquirer", "Analysis"],
+            ["Acquirer_sig", "Analysis_sig"],
         ),
         (
-                "complex_graph.yaml",
-                ["Acquirer", "Analysis", "InputStim"],
-                ["Acquirer_sig", "Analysis_sig", "InputStim_sig"],
+            "complex_graph.yaml",
+            ["Acquirer", "Analysis", "InputStim"],
+            ["Acquirer_sig", "Analysis_sig", "InputStim_sig"],
         ),
     ],
 )
@@ -220,10 +224,7 @@ def test_start_harvester(caplog, setdir, ports):
         print(f"error caught in test harness: {e}")
         logging.error(f"error caught in test harness: {e}")
 
-    assert any(
-        "Harvester server started" in record.msg
-        for record in caplog.records
-    )
+    assert any("Harvester server started" in record.msg for record in caplog.records)
 
 
 def test_process_actor_state_update(caplog, setdir, ports):
@@ -238,25 +239,18 @@ def test_process_actor_state_update(caplog, setdir, ports):
 
         time.sleep(3)
 
-        new_actor_message = ActorStateMsg(
-            "test actor",
-            "waiting",
-            1234,
-            "test info"
-        )
+        new_actor_message = ActorStateMsg("test actor", "waiting", 1234, "test info")
 
         nex.process_actor_state_update(new_actor_message)
         assert "test actor" in nex.actor_states
         assert nex.actor_states["test actor"].actor_name == new_actor_message.actor_name
-        assert nex.actor_states["test actor"].nexus_in_port == new_actor_message.nexus_in_port
+        assert (
+            nex.actor_states["test actor"].nexus_in_port
+            == new_actor_message.nexus_in_port
+        )
         assert nex.actor_states["test actor"].status == new_actor_message.status
 
-        update_actor_message = ActorStateMsg(
-            "test actor",
-            "waiting",
-            1234,
-            "test info"
-        )
+        update_actor_message = ActorStateMsg("test actor", "waiting", 1234, "test info")
 
         nex.process_actor_state_update(update_actor_message)
 
@@ -289,32 +283,28 @@ def test_process_actor_state_update_allows_run(caplog, setdir, ports):
         nex.actor_states["test actor1"] = None
         nex.actor_states["test actor2"] = None
 
-        actor1_message = ActorStateMsg(
-            "test actor1",
-            "ready",
-            1234,
-            "test info"
-        )
+        actor1_message = ActorStateMsg("test actor1", "ready", 1234, "test info")
 
         nex.process_actor_state_update(actor1_message)
         assert "test actor1" in nex.actor_states
         assert nex.actor_states["test actor1"].actor_name == actor1_message.actor_name
-        assert nex.actor_states["test actor1"].nexus_in_port == actor1_message.nexus_in_port
+        assert (
+            nex.actor_states["test actor1"].nexus_in_port
+            == actor1_message.nexus_in_port
+        )
         assert nex.actor_states["test actor1"].status == actor1_message.status
 
         assert not nex.allowStart
 
-        actor2_message = ActorStateMsg(
-            "test actor2",
-            "ready",
-            5678,
-            "test info2"
-        )
+        actor2_message = ActorStateMsg("test actor2", "ready", 5678, "test info2")
 
         nex.process_actor_state_update(actor2_message)
         assert "test actor2" in nex.actor_states
         assert nex.actor_states["test actor2"].actor_name == actor2_message.actor_name
-        assert nex.actor_states["test actor2"].nexus_in_port == actor2_message.nexus_in_port
+        assert (
+            nex.actor_states["test actor2"].nexus_in_port
+            == actor2_message.nexus_in_port
+        )
         assert nex.actor_states["test actor2"].status == actor2_message.status
 
         nex.destroy_nexus()
@@ -340,12 +330,7 @@ async def test_process_actor_message(caplog, setdir, ports):
         nex.actor_states["test actor1"] = None
         nex.actor_states["test actor2"] = None
 
-        actor1_message = ActorStateMsg(
-            "test actor1",
-            "ready",
-            1234,
-            "test info"
-        )
+        actor1_message = ActorStateMsg("test actor1", "ready", 1234, "test info")
 
         ctx = nex.zmq_context
         s = ctx.socket(zmq.REQ)
@@ -358,7 +343,10 @@ async def test_process_actor_message(caplog, setdir, ports):
         nex.process_actor_state_update(actor1_message)
         assert "test actor1" in nex.actor_states
         assert nex.actor_states["test actor1"].actor_name == actor1_message.actor_name
-        assert nex.actor_states["test actor1"].nexus_in_port == actor1_message.nexus_in_port
+        assert (
+            nex.actor_states["test actor1"].nexus_in_port
+            == actor1_message.nexus_in_port
+        )
         assert nex.actor_states["test actor1"].status == actor1_message.status
 
         s.close(linger=0)

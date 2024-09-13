@@ -44,7 +44,7 @@ def unused_tcp_port():
     global UNUSED_TCP_PORT
     pytest.unused_tcp_port = UNUSED_TCP_PORT
     yield pytest.unused_tcp_port
-    UNUSED_TCP_PORT +=1
+    UNUSED_TCP_PORT += 1
 
 
 @pytest.mark.asyncio
