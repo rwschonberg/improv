@@ -81,6 +81,7 @@ class Nexus:
     """Main server class for handling objects in improv"""
 
     def __init__(self, name="Server"):
+        self.logger_in_port: int | None = None
         self.zmq_sync_context: zmq_sync.Context | None = None
         self.logfile: str | None = None
         self.p_harvester: multiprocessing.Process | None = None
@@ -96,8 +97,8 @@ class Nexus:
         self.p_logger: multiprocessing.Process | None = None
         self.broker_pub_port = None
         self.broker_sub_port = None
-        self.broker_in_port = None
-        self.broker_in_socket = None
+        self.broker_in_port: int | None = None
+        self.broker_in_socket: zmq_sync.Socket | None = None
         self.actor_states: dict[str, ActorState | None] = dict()
         self.redis_fsync_frequency = None
         self.store = None
@@ -968,7 +969,7 @@ class Nexus:
             target=bootstrap_log_server,
             args=(
                 "localhost",
-                self.broker_in_port,
+                self.logger_in_port,
                 self.logfile,
                 log_server_pub_port,
             ),
@@ -986,7 +987,7 @@ class Nexus:
             self.quit()
             raise Exception("Could not start log server.")
         logger.info("logger is alive")
-        poll_res = self.broker_in_socket.poll(timeout=5000)
+        poll_res = self.logger_in_socket.poll(timeout=5000)
         if poll_res == 0:
             logger.info("Never got reply from logger.")
             try:
@@ -997,10 +998,10 @@ class Nexus:
             self.destroy_nexus()
             logger.info("exiting after destroy")
             exit(1)
-        logger_info: LogInfoMsg = self.broker_in_socket.recv_pyobj()
+        logger_info: LogInfoMsg = self.logger_in_socket.recv_pyobj()
         self.logger_pull_port = logger_info.pull_port
         self.logger_pub_port = logger_info.pub_port
-        self.broker_in_socket.send_pyobj(
+        self.logger_in_socket.send_pyobj(
             LogInfoReplyMsg(logger_info.name, "OK", "registered logger information")
         )
         logger.info("logger replied with setup message")
@@ -1121,6 +1122,14 @@ class Nexus:
         logger.info("Setting up sync server startup socket")
         self.zmq_sync_context = zmq_sync.Context()
         self.zmq_sync_context.setsockopt(SocketOption.LINGER, 0)
+
+        self.logger_in_socket = self.zmq_sync_context.socket(REP)
+        self.logger_in_socket.bind("tcp://*:0")
+        logger_in_port_string = self.logger_in_socket.getsockopt_string(
+            SocketOption.LAST_ENDPOINT
+        )
+        self.logger_in_port = int(logger_in_port_string.split(":")[-1])
+
         self.broker_in_socket = self.zmq_sync_context.socket(REP)
         self.broker_in_socket.bind("tcp://*:0")
         broker_in_port_string = self.broker_in_socket.getsockopt_string(
