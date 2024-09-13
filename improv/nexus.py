@@ -40,7 +40,8 @@ ASYNC_DEBUG = False
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-logger.addHandler(logging.StreamHandler())
+if logger.level == logging.DEBUG:
+    logger.addHandler(logging.StreamHandler())
 
 # TODO: redo docsctrings since things are pretty different now
 
@@ -1181,7 +1182,8 @@ class Nexus:
             self.config.settings["actor_in_port"] = actor_in_port
 
     def start_harvester(self):
-        self.p_harvester = multiprocessing.Process(
+        spawn_context = get_context("spawn")
+        self.p_harvester = spawn_context.Process(
             target=bootstrap_harvester,
             args=(
                 "localhost",

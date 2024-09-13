@@ -73,7 +73,7 @@ class RedisHarvester:
 
         signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
         for s in signals:
-            signal.signal(s, self.shutdown)
+            signal.signal(s, self.stop)
 
     def register_with_nexus(self):
         logger.info("Registering with Nexus")
@@ -109,6 +109,7 @@ class RedisHarvester:
         logger.info("Harvester beginning harvest")
         while self.running:
             message_process_func()
+        self.shutdown()
 
     def collect(self):
         db_info = self.store_client.client.info()
@@ -129,7 +130,7 @@ class RedisHarvester:
         time.sleep(0.1)
         return
 
-    def shutdown(self, signum, frame):
+    def shutdown(self):
         logger.info("shutting down due to signal {}".format(signum))
         if self.sub_socket:
             self.sub_socket.close(linger=0)
@@ -144,3 +145,7 @@ class RedisHarvester:
             handler.close()
 
         self.running = False
+
+    def stop(self, signum, frame):
+        self.running = False
+        logger.info(f"Harvester shutting down due to signal {signum}")
