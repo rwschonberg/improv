@@ -72,7 +72,7 @@ class PubSubBroker:
         msg_available = 0
         retries = 3
         while (retries > 3) and (msg_available == 0):
-            msg_available = self.nexus_socket.poll(timeout=2000)
+            msg_available = self.nexus_socket.poll(timeout=1000)
             if msg_available == 0:
                 local_log.info("broker didn't get a reply from nexus. cycling socket and resending")
                 self.nexus_socket.close(linger=0)
