@@ -131,7 +131,6 @@ class RedisHarvester:
         return
 
     def shutdown(self):
-        logger.info("shutting down due to signal {}".format(signum))
         if self.sub_socket:
             self.sub_socket.close(linger=0)
 
