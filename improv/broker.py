@@ -39,7 +39,7 @@ class PubSubBroker:
 
         signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
         for s in signals:
-            signal.signal(s, self.shutdown)
+            signal.signal(s, self.stop)
 
     def register_with_nexus(self):
         # connect to nexus
@@ -75,6 +75,7 @@ class PubSubBroker:
             if msg_available == 0:
                 local_log.info("broker didn't get a reply from nexus. cycling socket and resending")
                 self.nexus_socket.close(linger=0)
+                self.nexus_socket = self.zmq_context.socket(zmq.REQ)
                 self.nexus_socket.connect(f"tcp://{self.nexus_hostname}:{self.nexus_comm_port}")
                 self.nexus_socket.send_pyobj(port_info)
                 local_log.info("broker resent message")
@@ -90,6 +91,7 @@ class PubSubBroker:
         while self.running:
             # this is more testable but may have a performance overhead
             message_process_func()
+        self.shutdown()
 
     def read_and_pub_message(self):
         try:
@@ -100,9 +102,7 @@ class PubSubBroker:
         except zmq.error.ZMQError:
             self.running = False
 
-    def shutdown(self, signum, frame):
-        local_log.info(f"broker shutting down from signal {signum}")
-
+    def shutdown(self):
         for handler in local_log.handlers:
             handler.close()
 
@@ -117,5 +117,10 @@ class PubSubBroker:
 
         if self.zmq_context:
             self.zmq_context.destroy(linger=0)
+
+        self.running = False
+
+    def stop(self, signum, frame):
+        local_log.info(f"Log server shutting down due to signal {signum}")
 
         self.running = False
