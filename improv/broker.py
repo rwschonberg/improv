@@ -69,6 +69,15 @@ class PubSubBroker:
         self.nexus_socket.send_pyobj(port_info)
 
         local_log.info("broker attempting to get message from nexus")
+        msg_available = 0
+        while msg_available == 0:
+            msg_available = self.nexus_socket.poll(timeout=1000)
+            if msg_available == 0:
+                local_log.info("broker didn't get a reply from nexus. cycling socket and resending")
+                self.nexus_socket.close(linger=0)
+                self.nexus_socket.connect(f"tcp://{self.nexus_hostname}:{self.nexus_comm_port}")
+                self.nexus_socket.send_pyobj(port_info)
+                local_log.info("broker resent message")
 
         self.nexus_socket.recv_pyobj()
 
@@ -92,6 +101,11 @@ class PubSubBroker:
             self.running = False
 
     def shutdown(self, signum, frame):
+        local_log.info(f"broker shutting down from signal {signum}")
+
+        for handler in local_log.handlers:
+            handler.close()
+
         if self.sub_socket:
             self.sub_socket.close(linger=0)
 
