@@ -81,6 +81,7 @@ class Nexus:
     """Main server class for handling objects in improv"""
 
     def __init__(self, name="Server"):
+        multiprocessing.set_start_method("spawn")
         self.logger_in_port: int | None = None
         self.zmq_sync_context: zmq_sync.Context | None = None
         self.logfile: str | None = None
