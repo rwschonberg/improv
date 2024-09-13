@@ -9,7 +9,6 @@ import asyncio
 import concurrent
 import subprocess
 
-from queue import Full
 from datetime import datetime
 from multiprocessing import Process, get_context
 from importlib import import_module
@@ -81,7 +80,6 @@ class Nexus:
     """Main server class for handling objects in improv"""
 
     def __init__(self, name="Server"):
-        multiprocessing.set_start_method("spawn")
         self.logger_in_port: int | None = None
         self.zmq_sync_context: zmq_sync.Context | None = None
         self.logfile: str | None = None
@@ -966,7 +964,8 @@ class Nexus:
             self.actors[classname].add_link(linktype, link)
 
     def start_logger(self, log_server_pub_port):
-        self.p_logger = multiprocessing.Process(
+        spawn_context = get_context("spawn")
+        self.p_logger = spawn_context.Process(
             target=bootstrap_log_server,
             args=(
                 "localhost",
@@ -1008,7 +1007,8 @@ class Nexus:
         logger.info("logger replied with setup message")
 
     def start_message_broker(self):
-        self.p_broker = multiprocessing.Process(
+        spawn_context = get_context("spawn")
+        self.p_broker = spawn_context.Process(
             target=bootstrap_broker, args=("localhost", self.broker_in_port)
         )
         logger.info("broker created")
