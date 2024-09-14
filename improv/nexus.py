@@ -385,8 +385,9 @@ class Nexus:
         self._shutdown_logger()
 
         for handler in logger.handlers:
-            handler.close()
+            # need to close this one since we're about to destroy the zmq context
             if isinstance(handler, log.ZmqLogHandler):
+                handler.close()
                 logger.removeHandler(handler)
 
         if self.zmq_context:

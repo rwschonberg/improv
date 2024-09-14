@@ -29,6 +29,9 @@ def test_harvester_shuts_down_on_sigint(setup_store, harvester):
     else:
         assert True
 
+    s.close(linger=0)
+    ctx.destroy(linger=0)
+
 
 def test_harvester_relieves_memory_pressure(setup_store, harvester):
     store_interface = RedisStoreInterface()
@@ -59,6 +62,9 @@ def test_harvester_relieves_memory_pressure(setup_store, harvester):
         p.kill()
         pytest.fail("Harvester did not exit in time")
 
+    s.close(linger=0)
+    ctx.destroy(linger=0)
+
 
 def test_harvester_stop_logs_and_halts_running():
     ctx = zmq.Context()
@@ -82,6 +88,9 @@ def test_harvester_stop_logs_and_halts_running():
     assert msg_available
     record = s.recv_json()
     assert record["message"] == f"Harvester shutting down due to signal {signal.SIGINT}"
+
+    s.close(linger=0)
+    ctx.destroy(linger=0)
 
 
 def test_harvester_relieves_memory_pressure_one_loop(ports, setup_store):
@@ -134,6 +143,11 @@ def test_harvester_relieves_memory_pressure_one_loop(ports, setup_store):
     assert harvester.sub_socket.closed
     assert harvester.zmq_context.closed
 
+    nex_s.close(linger=0)
+    broker_s.close(linger=0)
+    log_s.close(linger=0)
+    ctx.destroy(linger=0)
+
 
 def test_harvester_loops_with_no_memory_pressure(ports, setup_store):
     def harvest_and_quit(harvester_instance: RedisHarvester):
@@ -175,3 +189,7 @@ def test_harvester_loops_with_no_memory_pressure(ports, setup_store):
     assert harvester.nexus_socket.closed
     assert harvester.sub_socket.closed
     assert harvester.zmq_context.closed
+
+    nex_s.close(linger=0)
+    log_s.close(linger=0)
+    ctx.destroy(linger=0)

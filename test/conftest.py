@@ -185,3 +185,4 @@ def harvester(ports):
     time.sleep(1)
     yield ports, socket, p
     socket.close(linger=0)
+    ctx.destroy(linger=0)
