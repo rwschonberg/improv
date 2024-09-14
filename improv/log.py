@@ -161,11 +161,11 @@ class LogServer:
         if self.pub_socket:
             self.pub_socket.close(linger=0)
 
-        if self.zmq_context:
-            self.zmq_context.destroy(linger=0)
-
         for handler in local_log.handlers:
             handler.close()
+
+        if self.zmq_context:
+            self.zmq_context.destroy(linger=0)
 
     def stop(self, signum, frame):
         local_log.info(f"Log server shutting down due to signal {signum}")

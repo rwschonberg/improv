@@ -136,6 +136,9 @@ class RedisHarvester:
         return
 
     def shutdown(self):
+        for handler in logger.handlers:
+            handler.close()
+
         if self.sub_socket:
             self.sub_socket.close(linger=0)
 
@@ -144,9 +147,6 @@ class RedisHarvester:
 
         if self.zmq_context:
             self.zmq_context.destroy(linger=0)
-
-        for handler in logger.handlers:
-            handler.close()
 
         self.running = False
 

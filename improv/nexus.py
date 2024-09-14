@@ -379,16 +379,18 @@ class Nexus:
             self.broker_in_socket.close(linger=0)
         if self.logger_in_socket:
             self.logger_in_socket.close(linger=0)
+
+        self._shutdown_broker()
+        self._shutdown_harvester()
+        self._shutdown_logger()
+
+        for handler in logger.handlers:
+            handler.close()
+
         if self.zmq_context:
             self.zmq_context.destroy(linger=0)
         if self.zmq_sync_context:
             self.zmq_sync_context.destroy(linger=0)
-
-        self._shutdown_broker()
-        self._shutdown_harvester()
-        for handler in logger.handlers:
-            handler.close()
-        self._shutdown_logger()
 
     async def poll_queues(self, poll_function, *args, **kwargs):
         """
@@ -1146,7 +1148,9 @@ class Nexus:
     def start_improv_services(self, log_server_pub_port, store_size):
         logger.debug("Starting logger")
         self.start_logger(log_server_pub_port)
-        logger.addHandler(log.ZmqLogHandler("localhost", self.logger_pull_port))
+        logger.addHandler(
+            log.ZmqLogHandler("localhost", self.logger_pull_port, self.zmq_sync_context)
+        )
 
         logger.debug("starting broker")
         self.start_message_broker()

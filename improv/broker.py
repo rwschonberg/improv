@@ -125,8 +125,6 @@ class PubSubBroker:
         if self.zmq_context:
             self.zmq_context.destroy(linger=0)
 
-        self.running = False
-
     def stop(self, signum, frame):
         local_log.info(f"Log server shutting down due to signal {signum}")
 
