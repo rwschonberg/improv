@@ -1,4 +1,5 @@
-from improv.actor import Actor
+from improv.actor import ZmqActor
+from datetime import date  # used for saving
 import numpy as np
 import logging
 
@@ -6,7 +7,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-class Generator(Actor):
+class Generator(ZmqActor):
     """Sample actor to generate data to pass into a sample processor.
 
     Intended for use along with sample_processor.py.
@@ -28,18 +29,19 @@ class Generator(Actor):
         integers from 1-99, inclusive.
         """
 
-        logger.info("Beginning setup for Generator")
         self.data = np.asmatrix(np.random.randint(100, size=(100, 5)))
-        logger.info("Completed setup for Generator")
+        self.improv_logger.info("Completed setup for Generator")
 
     def stop(self):
         """Save current randint vector to a file."""
 
-        logger.info("Generator stopping")
-        np.save("sample_generator_data.npy", self.data)
+        self.improv_logger.info("Generator stopping")
+        np.save(f"sample_generator_data", self.data)
+        # This is not the best example of a save function,
+        # will overwrite previous files with the same name.
         return 0
 
-    def runStep(self):
+    def run_step(self):
         """Generates additional data after initial setup data is exhausted.
 
         Data is of a different form as the setup data in that although it is
@@ -48,26 +50,24 @@ class Generator(Actor):
         converge to 5.5.
         """
 
-        if self.frame_num < np.shape(self.data)[0]:
-            if self.store_loc:
-                data_id = self.client.put(
-                    self.data[self.frame_num], str(f"Gen_raw: {self.frame_num}")
-                )
-            else:
-                data_id = self.client.put(self.data[self.frame_num])
-            # logger.info('Put data in store')
-            try:
-                if self.store_loc:
-                    self.q_out.put([[data_id, str(self.frame_num)]])
-                else:
-                    self.q_out.put(data_id)
-                # logger.info("Sent message on")
+        # get some random data, with a time, from the generator
+        # save it, along with the current timestamp (acquisition time), in nwb format
+        # send all 3 along to the processor, which doesn't really need to do anything else
+        # except know to unpack the data in the new format
 
+        # I think the goal here is that we're saving all the data as we go to an existing file,
+        # rather than at the end. so need to open up the file, probably in setup. write to it here.
+
+
+        if self.frame_num < np.shape(self.data)[0]:
+            data_id = self.client.put(self.data[self.frame_num])
+            try:
+                self.q_out.put(data_id)
+                # self.improv_logger.info(f"Sent {self.data[self.frame_num]} with key {data_id}")
                 self.frame_num += 1
+
             except Exception as e:
-                logger.error(
-                    f"--------------------------------Generator Exception: {e}"
-                )
+                self.improv_logger.error(f"Generator Exception: {e}")
         else:
             self.data = np.concatenate(
                 (self.data, np.asmatrix(np.random.randint(10, size=(1, 5)))), axis=0

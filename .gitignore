@@ -133,3 +133,4 @@ arrow
 *.code-workspace
 improv/_version.py
 
+*venv

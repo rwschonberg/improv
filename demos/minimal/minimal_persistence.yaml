@@ -1,0 +1,15 @@
+actors:
+  Generator:
+    package: actors.sample_persistence_generator
+    class: Generator
+
+  Processor:
+    package: actors.sample_persistence_processor
+    class: Processor
+
+connections:
+  Generator-Processor:
+    sources:
+      - Generator.q_out
+    sinks:
+      - Processor.q_in

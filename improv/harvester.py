@@ -37,6 +37,7 @@ def bootstrap_harvester(
         logger_hostname,
         logger_port,
     )
+    harvester.establish_connections()
     harvester.register_with_nexus()
     harvester.serve(harvester.collect)
 
@@ -75,7 +76,8 @@ class RedisHarvester:
         for s in signals:
             signal.signal(s, self.stop)
 
-    def register_with_nexus(self):
+
+    def establish_connections(self):
         logger.info("Registering with Nexus")
         # connect to nexus
         self.zmq_context = zmq.Context()
@@ -95,6 +97,10 @@ class RedisHarvester:
 
         self.link = ZmqLink(self.sub_socket, "harvester", "")
 
+    # TODO: this is a small function that is currently easy to verify
+    #   it could be unit-tested with a multiprocess that spins up a socket
+    #   which this can communicate with, but isn't currenlty worth the time
+    def register_with_nexus(self):
         port_info = HarvesterInfoMsg(
             "harvester",
             "Ports up and running, ready to serve messages",
@@ -105,13 +111,13 @@ class RedisHarvester:
 
         return
 
-    def serve(self, message_process_func):
+    def serve(self, message_process_func, *args, **kwargs):
         logger.info("Harvester beginning harvest")
         while self.running:
-            message_process_func()
+            message_process_func(*args, **kwargs)
         self.shutdown()
 
-    def collect(self):
+    def collect(self, *args, **kwargs):
         db_info = self.store_client.client.info()
         max_memory = db_info["maxmemory"]
         used_memory = db_info["used_memory"]

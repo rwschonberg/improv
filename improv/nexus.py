@@ -386,6 +386,8 @@ class Nexus:
 
         self._shutdown_broker()
         self._shutdown_harvester()
+        for handler in logger.handlers:
+            handler.close()
         self._shutdown_logger()
 
     async def poll_queues(self, poll_function, *args, **kwargs):

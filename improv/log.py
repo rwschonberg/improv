@@ -66,6 +66,7 @@ class ZmqPullListener(handlers.QueueListener):
 class ZmqLogHandler(QueueHandler):
     def __init__(self, hostname, port, ctx=None):
         self.ctx = ctx if ctx else zmq.Context()
+        self.ctx.setsockopt(SocketOption.LINGER, 0)
         self.socket = self.ctx.socket(zmq.PUSH)
         self.socket.connect(f"tcp://{hostname}:{port}")
         super().__init__(self.socket)
