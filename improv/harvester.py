@@ -76,7 +76,6 @@ class RedisHarvester:
         for s in signals:
             signal.signal(s, self.stop)
 
-
     def establish_connections(self):
         logger.info("Registering with Nexus")
         # connect to nexus

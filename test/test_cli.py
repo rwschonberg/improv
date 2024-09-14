@@ -1,4 +1,3 @@
-import logging
 import time
 
 import pytest
@@ -6,7 +5,6 @@ import os
 import datetime
 from collections import namedtuple
 import subprocess
-import asyncio
 import signal
 
 import improv.cli as cli

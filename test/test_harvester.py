@@ -134,6 +134,7 @@ def test_harvester_relieves_memory_pressure_one_loop(ports, setup_store):
     assert harvester.sub_socket.closed
     assert harvester.zmq_context.closed
 
+
 def test_harvester_loops_with_no_memory_pressure(ports, setup_store):
     def harvest_and_quit(harvester_instance: RedisHarvester):
         harvester_instance.collect()
@@ -142,10 +143,6 @@ def test_harvester_loops_with_no_memory_pressure(ports, setup_store):
     ctx = zmq.Context()
     nex_s = ctx.socket(zmq.REP)
     nex_s.bind(f"tcp://*:{ports[3]}")
-
-    broker_s = ctx.socket(zmq.PUB)
-    broker_s.bind("tcp://*:1234")
-    broker_link = ZmqLink(broker_s, "test", "test topic")
 
     log_s = ctx.socket(zmq.PULL)
     log_s.bind("tcp://*:0")
@@ -178,4 +175,3 @@ def test_harvester_loops_with_no_memory_pressure(ports, setup_store):
     assert harvester.nexus_socket.closed
     assert harvester.sub_socket.closed
     assert harvester.zmq_context.closed
-
