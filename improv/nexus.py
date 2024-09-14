@@ -386,6 +386,8 @@ class Nexus:
 
         for handler in logger.handlers:
             handler.close()
+            if isinstance(handler, log.ZmqLogHandler):
+                logger.removeHandler(handler)
 
         if self.zmq_context:
             self.zmq_context.destroy(linger=0)
