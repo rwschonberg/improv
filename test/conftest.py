@@ -99,16 +99,7 @@ def setup_store(server_port_num):
 
     # kill the subprocess when the caller is done with it
     p.send_signal(signal.SIGINT)
-    try:
-        p.wait(timeout=WAIT_TIMEOUT)
-    except subprocess.TimeoutExpired:
-        logging.error("Timed out waiting for redis to close.")
-        try:
-            p.kill()
-            p.wait(timeout=WAIT_TIMEOUT)
-        except subprocess.TimeoutExpired:
-            logging.error("Timed out waiting for redis to close after kill.")
-            raise Exception("Redis fixture didn't close")
+    p.wait(timeout=WAIT_TIMEOUT)
 
 
 def nex_startup(ports, filename):

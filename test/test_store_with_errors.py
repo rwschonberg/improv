@@ -26,7 +26,7 @@ def test_redis_connect(setup_store, server_port_num):
     assert store.client.ping()
 
 
-def test_redis_connect_wrong_port(setup_store, server_port_num):
+def test_redis_connect_wrong_port(server_port_num):
     bad_port_num = 1234
     with pytest.raises(CannotConnectToStoreInterfaceError) as e:
         RedisStoreInterface(server_port_num=bad_port_num)
