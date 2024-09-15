@@ -86,6 +86,7 @@ def test_argument_config_precedence(setdir, ports):
 # delete this comment later
 def test_start_nexus(sample_nex):
     with SignalManager():
+
         async def set_quit_flag(test_nex):
             test_nex.flags["quit"] = True
 
