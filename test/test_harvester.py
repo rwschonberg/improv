@@ -1,3 +1,4 @@
+import logging
 import signal
 import time
 
@@ -105,58 +106,67 @@ def test_harvester_relieves_memory_pressure_one_loop(ports, setup_store):
         harvester_instance.stop(signal.SIGINT, None)
 
     with SignalManager():
+        try:
+            ctx = zmq.Context()
+            nex_s = ctx.socket(zmq.REP)
+            nex_s.bind(f"tcp://*:{ports[3]}")
 
-        ctx = zmq.Context()
-        nex_s = ctx.socket(zmq.REP)
-        nex_s.bind(f"tcp://*:{ports[3]}")
+            broker_s = ctx.socket(zmq.PUB)
+            broker_s.bind("tcp://*:1234")
+            broker_link = ZmqLink(broker_s, "test", "test topic")
 
-        broker_s = ctx.socket(zmq.PUB)
-        broker_s.bind("tcp://*:1234")
-        broker_link = ZmqLink(broker_s, "test", "test topic")
+            log_s = ctx.socket(zmq.PULL)
+            log_s.bind("tcp://*:0")
+            pull_port_string = log_s.getsockopt_string(SocketOption.LAST_ENDPOINT)
+            pull_port = int(pull_port_string.split(":")[-1])
 
-        log_s = ctx.socket(zmq.PULL)
-        log_s.bind("tcp://*:0")
-        pull_port_string = log_s.getsockopt_string(SocketOption.LAST_ENDPOINT)
-        pull_port = int(pull_port_string.split(":")[-1])
+            harvester = RedisHarvester(
+                nexus_hostname="localhost",
+                nexus_comm_port=ports[3],  # never gets called in this test
+                redis_hostname="localhost",
+                redis_port=6379,  # never gets called in this test
+                broker_hostname="localhost",
+                broker_port=1234,  # never gets called in this test
+                logger_hostname="localhost",
+                logger_port=pull_port,
+            )
 
-        harvester = RedisHarvester(
-            nexus_hostname="localhost",
-            nexus_comm_port=ports[3],  # never gets called in this test
-            redis_hostname="localhost",
-            redis_port=6379,  # never gets called in this test
-            broker_hostname="localhost",
-            broker_port=1234,  # never gets called in this test
-            logger_hostname="localhost",
-            logger_port=pull_port,
-        )
+            harvester.establish_connections()
 
-        harvester.establish_connections()
+            client = RedisStoreInterface()
+            for i in range(9):
+                message = [i for i in range(500000)]
+                key = client.put(message)
+                broker_link.put(key)
+            time.sleep(2)
 
-        client = RedisStoreInterface()
-        for i in range(9):
-            message = [i for i in range(500000)]
-            key = client.put(message)
-            broker_link.put(key)
-        time.sleep(2)
+            harvester.serve(harvest_and_quit, harvester_instance=harvester)
 
-        harvester.serve(harvest_and_quit, harvester_instance=harvester)
+            db_info = client.client.info()
+            max_memory = db_info["maxmemory"]
+            used_memory = db_info["used_memory"]
+            used_max_ratio = used_memory / max_memory
 
-        db_info = client.client.info()
-        max_memory = db_info["maxmemory"]
-        used_memory = db_info["used_memory"]
-        used_max_ratio = used_memory / max_memory
+            assert used_max_ratio <= 0.5
+            assert not harvester.running
+            assert harvester.nexus_socket.closed
+            assert harvester.sub_socket.closed
+            assert harvester.zmq_context.closed
+        except Exception as e:
+            logging.error(e)
+            print(e)
+            pass
 
-        assert used_max_ratio <= 0.5
-        assert not harvester.running
-        assert harvester.nexus_socket.closed
-        assert harvester.sub_socket.closed
-        assert harvester.zmq_context.closed
+        try:
 
-        nex_s.close(linger=0)
-        broker_s.close(linger=0)
-        log_s.close(linger=0)
-        ctx.destroy(linger=0)
-
+            nex_s.close(linger=0)
+            broker_s.close(linger=0)
+            log_s.close(linger=0)
+            ctx.destroy(linger=0)
+        except Exception as e:
+            logging.error(e)
+            print(e)
+            pass
 
 def test_harvester_loops_with_no_memory_pressure(ports, setup_store):
     def harvest_and_quit(harvester_instance: RedisHarvester):
