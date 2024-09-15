@@ -145,7 +145,7 @@ class RedisHarvester:
             self.sub_socket.close(linger=0)
 
         if self.nexus_socket:
-            self.sub_socket.close(linger=0)
+            self.nexus_socket.close(linger=0)
 
         if self.zmq_context:
             self.zmq_context.destroy(linger=0)
