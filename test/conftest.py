@@ -95,9 +95,11 @@ def setup_store(server_port_num):
             "--maxmemory",
             str(10000000),
         ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
     )
+
+    time.sleep(3)
+    if p.poll() is not None:
+        raise Exception("redis-server failed to start")
 
     yield p
 
