@@ -153,5 +153,5 @@ class RedisHarvester:
     def stop(self, signum, frame):
         self.running = False
         logger.info(
-            f"Harvester talking to nexus port {self.nexus_comm_port} shutting down due to signal {signum}"
+            f"Harvester shutting down due to signal {signum}"
         )

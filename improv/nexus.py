@@ -1222,7 +1222,7 @@ class Nexus:
                 harvester_info.name, "OK", "registered harvester information"
             )
         )
-        logger.info(f"Harvester server started")
+        logger.info("Harvester server started")
 
     async def serve(self, serve_function, *args, **kwargs):
         await serve_function(*args, **kwargs)

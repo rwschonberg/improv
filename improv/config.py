@@ -125,7 +125,7 @@ class Config:
             self.config["settings"] = {}
 
         if "store_size" not in self.config["settings"]:
-            self.config["settings"]["store_size"] = 100_000_000
+            self.config["settings"]["store_size"] = 250_000_000
         if "control_port" not in self.config["settings"]:
             self.config["settings"]["control_port"] = 5555
         if "output_port" not in self.config["settings"]:

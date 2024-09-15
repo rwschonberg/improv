@@ -181,7 +181,7 @@ def test_blank_cfg(setdir, caplog, ports):
 
 def test_start_store(caplog):
     nex = Nexus("test")
-    nex._start_store_interface(10000000)  # 10 MB store
+    nex._start_store_interface(100_000_000)  # 100 MB store
 
     assert any(
         "StoreInterface start successful" in record.msg for record in caplog.records
@@ -215,7 +215,7 @@ def test_start_harvester(caplog, setdir, ports):
     try:
         nex.create_nexus(
             file="minimal_harvester.yaml",
-            store_size=10000000,
+            store_size=100_000_000,
             control_port=ports[0],
             output_port=ports[1],
         )
@@ -235,7 +235,7 @@ def test_process_actor_state_update(caplog, setdir, ports):
     try:
         nex.create_nexus(
             file="minimal_harvester.yaml",
-            store_size=10000000,
+            store_size=100_000_000,
             control_port=ports[0],
             output_port=ports[1],
         )
@@ -276,7 +276,7 @@ def test_process_actor_state_update_allows_run(caplog, setdir, ports):
     try:
         nex.create_nexus(
             file="minimal_harvester.yaml",
-            store_size=10000000,
+            store_size=100_000_000,
             control_port=ports[0],
             output_port=ports[1],
         )
@@ -323,7 +323,7 @@ async def test_process_actor_message(caplog, setdir, ports):
     try:
         nex.create_nexus(
             file="minimal_harvester.yaml",
-            store_size=10000000,
+            store_size=100_000_000,
             control_port=ports[0],
             output_port=ports[1],
         )
@@ -366,7 +366,7 @@ def test_specified_free_port(caplog, setdir, ports):
     try:
         nex.create_nexus(
             file="minimal_with_fixed_redis_port.yaml",
-            store_size=10000000,
+            store_size=100_000_000,
             control_port=ports[0],
             output_port=ports[1],
         )
@@ -399,7 +399,7 @@ def test_specified_busy_port(caplog, setdir, ports, setup_store):
     try:
         nex.create_nexus(
             file="minimal_with_fixed_default_redis_port.yaml",
-            store_size=10000000,
+            store_size=100_000_000,
             control_port=ports[0],
             output_port=ports[1],
         )
@@ -426,7 +426,7 @@ def test_unspecified_port_default_free(caplog, setdir, ports):
     try:
         nex.create_nexus(
             file="minimal.yaml",
-            store_size=10000000,
+            store_size=100_000_000,
             control_port=ports[0],
             output_port=ports[1],
         )
@@ -449,7 +449,7 @@ def test_unspecified_port_default_busy(caplog, setdir, ports, setup_store):
     try:
         nex.create_nexus(
             file="minimal.yaml",
-            store_size=10000000,
+            store_size=100_000_000,
             control_port=ports[0],
             output_port=ports[1],
         )
@@ -477,7 +477,7 @@ def test_no_aof_dir_by_default(caplog, setdir, ports):
 
         nex.create_nexus(
             file="minimal.yaml",
-            store_size=10000000,
+            store_size=100_000_000,
             control_port=ports[0],
             output_port=ports[1],
         )
@@ -498,7 +498,7 @@ def test_default_aof_dir_if_none_specified(caplog, setdir, ports, server_port_nu
     try:
         nex.create_nexus(
             file="minimal_with_redis_saving.yaml",
-            store_size=10000000,
+            store_size=100_000_000,
             control_port=ports[0],
             output_port=ports[1],
         )
@@ -528,7 +528,7 @@ def test_specify_static_aof_dir(caplog, setdir, ports, server_port_num):
     try:
         nex.create_nexus(
             file="minimal_with_custom_aof_dirname.yaml",
-            store_size=10000000,
+            store_size=100_000_000,
             control_port=ports[0],
             output_port=ports[1],
         )
@@ -558,7 +558,7 @@ def test_use_ephemeral_aof_dir(caplog, setdir, ports, server_port_num):
     try:
         nex.create_nexus(
             file="minimal_with_ephemeral_aof_dirname.yaml",
-            store_size=10000000,
+            store_size=100_000_000,
             control_port=ports[0],
             output_port=ports[1],
         )
@@ -585,7 +585,7 @@ def test_save_no_schedule(caplog, setdir, ports, server_port_num):
     try:
         nex.create_nexus(
             file="minimal_with_no_schedule_saving.yaml",
-            store_size=10000000,
+            store_size=100_000_000,
             control_port=ports[0],
             output_port=ports[1],
         )
@@ -612,7 +612,7 @@ def test_save_every_second(caplog, setdir, ports, server_port_num):
     try:
         nex.create_nexus(
             file="minimal_with_every_second_saving.yaml",
-            store_size=10000000,
+            store_size=100_000_000,
             control_port=ports[0],
             output_port=ports[1],
         )
@@ -639,7 +639,7 @@ def test_save_every_write(caplog, setdir, ports, server_port_num):
     try:
         nex.create_nexus(
             file="minimal_with_every_write_saving.yaml",
-            store_size=10000000,
+            store_size=100_000_000,
             control_port=ports[0],
             output_port=ports[1],
         )
