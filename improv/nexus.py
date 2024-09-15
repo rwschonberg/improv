@@ -776,7 +776,7 @@ class Nexus:
             )
             # try with failure, incrementing port number
             self.p_StoreInterface = self.start_redis(size)
-            time.sleep(2)
+            time.sleep(1)
             if self.p_StoreInterface.poll():  # Redis could not start
                 logger.info("Could not connect to port {}".format(self.store_port))
                 self.store_port = str(int(self.store_port) + 1)
