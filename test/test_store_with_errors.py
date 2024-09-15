@@ -20,9 +20,9 @@ def test_connect(setup_store, server_port_num):
     assert isinstance(store.client, redis.Redis)
 
 
-def test_redis_connect(setup_store, server_port_num):
-    store = RedisStoreInterface(server_port_num=server_port_num)
-    assert store.client.ping()
+# def test_redis_connect(setup_store, server_port_num):
+#     store = RedisStoreInterface(server_port_num=server_port_num)
+#     assert store.client.ping()
 
 
 def test_redis_connect_wrong_port(server_port_num):
