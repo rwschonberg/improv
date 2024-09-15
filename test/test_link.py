@@ -322,7 +322,13 @@ def test_get_nowait(test_sub_link, message):
         )
         expected = message
 
-    time.sleep(0.1)
+    for i in range(20):
+        time.sleep(0.1)
+        avail = link.socket.poll(timeout=100)
+        if avail:
+            break
+    else:
+        pytest.fail("Message was not sent to link after 4s")
 
     t_0 = time.perf_counter()
 
