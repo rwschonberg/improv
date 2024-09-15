@@ -830,8 +830,8 @@ class Nexus:
 
         return subprocess.Popen(
             subprocess_command,
-            # stdout=subprocess.DEVNULL,
-            # stderr=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
 
     def _close_store_interface(self):
