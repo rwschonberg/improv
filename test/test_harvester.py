@@ -136,8 +136,13 @@ def test_harvester_relieves_memory_pressure_one_loop(ports, setup_store):
             client = RedisStoreInterface()
             for i in range(9):
                 message = [i for i in range(500000)]
-                key = client.put(message)
-                broker_link.put(key)
+                try:
+                    key = client.put(message)
+                    broker_link.put(key)
+                except Exception as e:
+                    logging.warning(e)
+                    logging.warning("Proceeding under the assumption Redis is full.")
+                    break
             time.sleep(2)
 
             harvester.serve(harvest_and_quit, harvester_instance=harvester)
@@ -152,8 +157,10 @@ def test_harvester_relieves_memory_pressure_one_loop(ports, setup_store):
             assert harvester.nexus_socket.closed
             assert harvester.sub_socket.closed
             assert harvester.zmq_context.closed
+            logging.info("Passed harvester one loop test")
+
         except Exception as e:
-            logging.error(e)
+            logging.error(f"Encountered exception {e} during execution of test")
             print(e)
             pass
 
@@ -164,9 +171,10 @@ def test_harvester_relieves_memory_pressure_one_loop(ports, setup_store):
             log_s.close(linger=0)
             ctx.destroy(linger=0)
         except Exception as e:
-            logging.error(e)
+            logging.error(f"Encountered exception {e} during teardown")
             print(e)
             pass
+
 
 def test_harvester_loops_with_no_memory_pressure(ports, setup_store):
     def harvest_and_quit(harvester_instance: RedisHarvester):

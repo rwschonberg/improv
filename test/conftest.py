@@ -95,6 +95,8 @@ def setup_store(server_port_num):
             "--maxmemory",
             str(10000000),
         ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
 
     time.sleep(3)
@@ -134,12 +136,6 @@ def start_nexus_minimal_zmq(ports):
     if p.exitcode is None:
         logging.exception("Timed out waiting for nexus to stop")
         p.kill()
-
-
-# make a fixture to spool up an actor
-# do it just like the nexus test; spin off actor target which calls nexus connect method
-# imitate what nexus would do (connect to ports), and send it to the actor
-# assert on getting a response back from the actor's signal port
 
 
 @pytest.fixture
