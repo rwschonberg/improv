@@ -137,7 +137,9 @@ class RedisHarvester:
 
     def shutdown(self):
         for handler in logger.handlers:
-            handler.close()
+            if isinstance(handler, ZmqLogHandler):
+                handler.close()
+                logger.removeHandler(handler)
 
         if self.sub_socket:
             self.sub_socket.close(linger=0)
@@ -148,8 +150,6 @@ class RedisHarvester:
         if self.zmq_context:
             self.zmq_context.destroy(linger=0)
 
-        self.running = False
-
     def stop(self, signum, frame):
         self.running = False
-        logger.info(f"Harvester shutting down due to signal {signum}")
+        logger.info(f"Harvester talking to nexus port {self.nexus_comm_port} shutting down due to signal {signum}")

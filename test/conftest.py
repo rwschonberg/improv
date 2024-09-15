@@ -18,14 +18,16 @@ WAIT_TIMEOUT = 10
 
 SERVER_COUNTER = 0
 
+signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
+
 
 @pytest.fixture
 def ports():
     global SERVER_COUNTER
-    CONTROL_PORT = 5555
-    OUTPUT_PORT = 5556
-    LOGGING_PORT = 5557
-    ACTOR_IN_PORT = 7005
+    CONTROL_PORT = 30000
+    OUTPUT_PORT = 30001
+    LOGGING_PORT = 30002
+    ACTOR_IN_PORT = 30003
     yield (
         CONTROL_PORT + SERVER_COUNTER,
         OUTPUT_PORT + SERVER_COUNTER,
@@ -62,14 +64,16 @@ def sample_nex(setdir, ports):
             output_port=ports[1],
         )
     except Exception as e:
-        print(f"error caught in test harness: {e}")
-        logging.error(f"error caught in test harness: {e}")
+        print(f"error caught in test harness during create_nexus step: {e}")
+        logging.error(f"error caught in test harness during create_nexus step: {e}")
+        raise e
     yield nex
     try:
         nex.destroy_nexus()
     except Exception as e:
-        print(f"error caught in test harness: {e}")
-        logging.error(f"error caught in test harness: {e}")
+        print(f"error caught in test harness during destroy_nexus step: {e}")
+        logging.error(f"error caught in test harness during destroy_nexus step: {e}")
+        raise e
 
 
 @pytest.fixture
@@ -177,3 +181,16 @@ def harvester(ports):
     yield ports, socket, p
     socket.close(linger=0)
     ctx.destroy(linger=0)
+
+
+class SignalManager:
+    def __init__(self):
+        self.signal_handlers = dict()
+
+    def __enter__(self):
+        for sig in signals:
+            self.signal_handlers[sig] = signal.getsignal(sig)
+
+    def __exit__(self, type, value, traceback):
+        for sig, handler in self.signal_handlers.items():
+            signal.signal(sig, handler)

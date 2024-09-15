@@ -16,6 +16,7 @@ from improv.nexus import (
     ConfigFileNotValidException,
 )
 from improv.store import StoreInterface
+from conftest import SignalManager
 
 
 def test_init(setdir):
@@ -84,12 +85,13 @@ def test_argument_config_precedence(setdir, ports):
 
 # delete this comment later
 def test_start_nexus(sample_nex):
-    async def set_quit_flag(test_nex):
-        test_nex.flags["quit"] = True
+    with SignalManager():
+        async def set_quit_flag(test_nex):
+            test_nex.flags["quit"] = True
 
-    nex = sample_nex
-    nex.start_nexus(nex.poll_queues, poll_function=set_quit_flag, test_nex=nex)
-    assert [p.name for p in nex.processes] == ["Acquirer", "Analysis"]
+        nex = sample_nex
+        nex.start_nexus(nex.poll_queues, poll_function=set_quit_flag, test_nex=nex)
+        assert [p.name for p in nex.processes] == ["Acquirer", "Analysis"]
 
 
 @pytest.mark.skip(

@@ -367,6 +367,7 @@ class Nexus:
         and the message broker
         """
         logger.warning("Destroying Nexus")
+        self._shutdown_harvester()
         self._close_store_interface()
 
         if self.out_socket:
@@ -381,7 +382,6 @@ class Nexus:
             self.logger_in_socket.close(linger=0)
 
         self._shutdown_broker()
-        self._shutdown_harvester()
         self._shutdown_logger()
 
         for handler in logger.handlers:
@@ -830,8 +830,8 @@ class Nexus:
 
         return subprocess.Popen(
             subprocess_command,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            # stdout=subprocess.DEVNULL,
+            # stderr=subprocess.DEVNULL,
         )
 
     def _close_store_interface(self):
@@ -1222,7 +1222,7 @@ class Nexus:
                 harvester_info.name, "OK", "registered harvester information"
             )
         )
-        logger.info("Harvester server started")
+        logger.info(f"Harvester server started")
 
     async def serve(self, serve_function, *args, **kwargs):
         await serve_function(*args, **kwargs)
