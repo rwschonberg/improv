@@ -57,7 +57,8 @@ class Processor(ZmqActor):
         if frame is not None and self.frame_num is not None:
             self.done = False
             self.frame = self.client.get(frame)
-            avg = np.mean(self.frame[0])
+            device_data = self.frame[1][1]
+            avg = np.mean(device_data)
             # self.improv_logger.info(f"Average: {avg}")
             self.avg_list.append(avg)
             # self.improv_logger.info(f"Overall Average: {np.mean(self.avg_list)}")
