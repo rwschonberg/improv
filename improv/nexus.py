@@ -45,12 +45,7 @@ if logger.level == logging.DEBUG:
 
 # TODO: redo docsctrings since things are pretty different now
 
-# TODO: rethink nexus shutdown semantics (getting to take quite a long time)
-
 # TODO: socket setup can fail - need to check it
-
-# TODO: socket polling needs to be done for all recv calls;
-#  these could potentially block
 
 # TODO: redo how actors register with nexus so that we get actor states
 #   earlier
